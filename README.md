@@ -12,5 +12,5 @@ StreamFlow — это прототип стримингового сервиса
 
 # Технологический стек
 - Backend: NestJS (TypeScript, Node.js 22+), Socket.io, Node Media Server (RTMP), Prisma (PostgreSQL/MongoDB).
-- Frontend: React (TypeScript), Socket.io-client, Axios.
+- Frontend: React (JavaScript), MUI, Socket.io-client, Axios.
 - Инфраструктура: FFmpeg, S3.
