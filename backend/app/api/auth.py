@@ -1,9 +1,15 @@
+from uuid import getnode
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+
+from app.consts.role_dict import roles_dict
 from app.database import get_db
+from app.models.user_role import UserRole
 from app.schemas.auth import UserRegister, UserLogin, UserResponse, Token
 from app.models.user import User
 from app.utils.security import hash_password, verify_password, create_access_token
+from app.utils.uuid import gen_uuid
 
 router = APIRouter()
 
@@ -31,6 +37,12 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
 		hashed_password=hash_password(user_data.password)
 	)
 
+	new_user_role = UserRole(
+		user_id=new_user.id,
+		role_id=roles_dict['user']
+	)
+
+	db.add(new_user_role)
 	db.add(new_user)
 	db.commit()
 	db.refresh(new_user)

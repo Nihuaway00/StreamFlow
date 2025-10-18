@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, UUID4
 from typing import Optional
 
 
@@ -14,7 +14,7 @@ class UserLogin(BaseModel):
 
 
 class UserResponse(BaseModel):
-	id: int
+	id: UUID4
 	email: str
 	username: str
 

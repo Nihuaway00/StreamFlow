@@ -1,13 +1,19 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime
+from sqlalchemy import Column, UUID, Integer, String, Text, ForeignKey, DateTime
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.utils.uuid import gen_uuid
 
 
 class Stream(Base):
 	__tablename__ = "streams"
 
-	id = Column(Integer, primary_key=True, index=True)
+	def __init__(self, **kw):
+		self.id = gen_uuid()
+
+		super().__init__(id=self.id, **kw)
+
+	id = Column(UUID, primary_key=True, index=True)
 	user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
 	title = Column(String(255), nullable=False)

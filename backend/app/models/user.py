@@ -1,13 +1,19 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, UUID, DateTime
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.utils.uuid import gen_uuid
 
 
 class User(Base):
 	__tablename__ = "users"
 
-	id = Column(Integer, primary_key=True, index=True)
+	def __init__(self, **kwargs):
+		self.id = gen_uuid()
+
+		super().__init__(id=self.id, **kwargs)
+
+	id = Column(UUID, primary_key=True, index=True)
 	email = Column(String(255), unique=True, nullable=False, index=True)
 	username = Column(String(50), unique=True, nullable=False, index=True)
 	hashed_password = Column(String(255), nullable=False)

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, UUID4
 from datetime import datetime
 from typing import Optional
 
@@ -9,7 +9,7 @@ class StreamCreate(BaseModel):
 
 
 class StreamAuthor(BaseModel):
-	id: int
+	id: UUID4
 	username: str
 
 	class Config:
@@ -17,7 +17,7 @@ class StreamAuthor(BaseModel):
 
 
 class StreamResponse(BaseModel):
-	id: int
+	id: UUID4
 	title: str
 	description: Optional[str]
 	status: str
@@ -31,7 +31,7 @@ class StreamResponse(BaseModel):
 
 
 class StreamPublic(BaseModel):
-	id: int
+	id: UUID4
 	title: str
 	description: Optional[str]
 	status: str
@@ -44,7 +44,7 @@ class StreamPublic(BaseModel):
 
 
 class StreamDetail(BaseModel):
-	id: int
+	id: UUID4
 	title: str
 	description: Optional[str]
 	status: str
@@ -66,7 +66,7 @@ class StreamListResponse(BaseModel):
 
 
 class StreamMy(BaseModel):
-	id: int
+	id: UUID4
 	title: str
 	status: str
 	stream_key: str
