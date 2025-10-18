@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  # PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    container_name: streaming_postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: streaming_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - streaming_network
+
+  # Backend API
+  backend:
+    build: ./backend
+    container_name: streaming_backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - postgres
+    networks:
+      - streaming_network
+
+  # Media Server (nginx-rtmp)
+  media-server:
+    build: ./media_server
+    container_name: streaming_media
+    ports:
+      - "1935:1935"  # RTMP
+      - "8080:8080"  # HLS
+    volumes:
+      - hls_data:/tmp/hls
+    depends_on:
+      - backend
+    networks:
+      - streaming_network
+
+volumes:
+  postgres_data:
+  hls_data:
+
+networks:
+  streaming_network:
+    driver: bridge
