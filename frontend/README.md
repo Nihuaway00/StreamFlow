@@ -30,3 +30,8 @@ start.bat
 VITE_API_URL=http://localhost:8000
 VITE_HLS_BASE_URL=http://localhost:8080
 ```
+
+## API бекенда
+
+Его просмотреть можно по адресу localhost:8000/docs, после того
+как бекенд будет запущен (для этого start.bat).
