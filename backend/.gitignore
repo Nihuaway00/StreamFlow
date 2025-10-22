@@ -30,7 +30,14 @@ venv/
 # Environment variables
 .env
 .env.local
+.env.production
+*.env
 .env.*.local
+
+# НО коммитим примеры:
+!.env.example
+!.env.local.example
+!.env.production.example
 
 # IDE
 .vscode/

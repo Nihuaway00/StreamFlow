@@ -22,9 +22,9 @@ class Settings(BaseSettings):
 
 	class Config:
 		# Приоритет файлов env:
-		# 1. Сначала ищет .env.local (для локальной разработки)
+		# 1. Сначала ищет .env (для локальной разработки)
 		# 2. Если не найден, использует .env (для Docker)
-		env_file = ".env.local" if os.path.exists(".env.local") else ".env"
+		env_file = ".env"
 		env_file_encoding = "utf-8"
 
 

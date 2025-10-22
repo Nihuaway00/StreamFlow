@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: streaming_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  media-server:
+    container_name: media_server
+    build: ../media_server
+    command: nginx -c /etc/nginx/nginx.dev.conf -g 'daemon off;'
+    ports:
+      - "1935:1935"
+      - "8080:8080"
+    volumes:
+      - hls_data:/tmp/hls
+
+volumes:
+  postgres_data:
+  hls_data:
