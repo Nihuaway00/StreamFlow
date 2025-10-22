@@ -1,7 +1,10 @@
 FROM alfg/nginx-rtmp:latest
 
-# Копируем конфигурацию
+# Копируем конфигурацию nginx
 COPY nginx.conf /etc/nginx/nginx.conf
+
+# Копируем плеер
+COPY player.html /usr/share/nginx/html/player.html
 
 # Создаем директорию для HLS
 RUN mkdir -p /tmp/hls
