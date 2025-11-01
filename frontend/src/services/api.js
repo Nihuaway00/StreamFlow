@@ -1,9 +1,9 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: `${API_BASE_URL}/api`,
 });
 
 api.interceptors.request.use((config) => {
@@ -15,9 +15,9 @@ api.interceptors.request.use((config) => {
 });
 
 export const authAPI = {
-  register: (userData) => api.post('/register', userData),
-  login: (userData) => api.post('/login', userData),
-  logout: () => api.post('/logout'),
+  register: (userData) => api.post('/auth/register', userData),
+  login: (userData) => api.post('/auth/login', userData),
+  logout: () => api.post('/auth/logout'),
 };
 
 export const streamAPI = {
