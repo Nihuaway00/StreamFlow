@@ -1,9 +1,9 @@
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: postgres
+    container_name: streamflow-db
     ports:
-      - "5432:5432"
+      - "9999:5432"
     environment:
       POSTGRES_USER: test
       POSTGRES_PASSWORD: test
@@ -12,7 +12,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   media-server:
-    container_name: media_server
+    container_name: streamflow-media
     build: ../media_server
     command: nginx -c /etc/nginx/nginx.dev.conf -g 'daemon off;'
     ports:
@@ -22,7 +22,7 @@ services:
       - hls_data:/tmp/hls
 
   frontend:
-    container_name: frontend
+    container_name: streamflow-frontend
     build:
       context: ../frontend
       dockerfile: Dockerfile
