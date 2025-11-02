@@ -1,10 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.database import engine, Base
+from app.database import engine, Base, init_roles
 from app.api import auth, streams, webhooks
 
 # Создание таблиц
 Base.metadata.create_all(bind=engine)
+
+# Инициализация ролей
+init_roles()
 
 app = FastAPI(
     title="Streaming Service API",
