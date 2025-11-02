@@ -1,8 +1,7 @@
 #!/bin/bash
 set -e
 
-
-# nc должен быть установлен в контейнер
+# Wait for PostgreSQL
 echo "Waiting for postgres..."
 while ! nc -z postgres 5432; do
   sleep 0.1
