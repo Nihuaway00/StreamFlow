@@ -80,8 +80,8 @@ const Header = () => {
                 🎥 Начать стрим
               </Link>
               
-              {/* КНОПКА ПРОФИЛЯ С ЧЕЛОВЕЧКОМ */}
-              <div style={{
+             {/* КНОПКА ПРОФИЛЯ С ЧЕЛОВЕЧКОМ */}
+              <Link to="/profile" style={{
                 background: '#9147ff',
                 color: 'white',
                 width: '30px',
@@ -93,12 +93,13 @@ const Header = () => {
                 cursor: 'pointer',
                 fontSize: '16px',
                 fontWeight: 'bold',
+                textDecoration: 'none',
                 transition: 'all 0.2s'
               }}
               onMouseEnter={(e) => e.target.style.background = '#772ce8'}
               onMouseLeave={(e) => e.target.style.background = '#9147ff'}>
                 👤
-              </div>
+              </Link>
               
               <button 
                 onClick={logout}

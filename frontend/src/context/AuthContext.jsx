@@ -14,13 +14,16 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
     if (token) {
-      // TODO: Добавить запрос для получения данных пользователя
+      // НИКИТА НАМ НУЖЕН запрос для получения данных пользователя ???????? Я НЕ ЗНАЮ
+      setIsAuthenticated(true)
       setLoading(false)
     } else {
+      setIsAuthenticated(false)
       setLoading(false)
     }
   }, [])
@@ -29,6 +32,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authAPI.login({ email, password })
       localStorage.setItem('access_token', response.data.access_token)
+      setIsAuthenticated(true)
       return { success: true }
     } catch (error) {
       return { 
@@ -58,6 +62,8 @@ export const AuthProvider = ({ children }) => {
     } finally {
       localStorage.removeItem('access_token')
       setUser(null)
+      setIsAuthenticated(false)
+      window.location.reload() // Полная перезагрузка страницы
     }
   }
 
@@ -67,7 +73,7 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     loading,
-    isAuthenticated: !!localStorage.getItem('access_token')
+    isAuthenticated
   }
 
   return (
