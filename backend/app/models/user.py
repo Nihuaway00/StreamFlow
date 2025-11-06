@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, UUID, DateTime, Text # добавил тип данный текст для био
+from sqlalchemy import Column, Integer, String, UUID, DateTime, Text, Boolean # добавил тип данный текст для био
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
