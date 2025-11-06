@@ -35,3 +35,8 @@ class Stream(Base):
 
 	# Relationship
 	author = relationship("User", back_populates="streams")
+	stream_themes = relationship("StreamTheme", back_populates="stream", cascade="all, delete-orphan")
+    
+	@property
+	def themes(self):
+		return [st.theme for st in self.stream_themes]

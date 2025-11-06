@@ -18,8 +18,6 @@ class User(Base):
 	username = Column(String(50), unique=True, nullable=False, index=True)
 	hashed_password = Column(String(255), nullable=False)
 	created_at = Column(DateTime(timezone=True), server_default=func.now())
-	
-	# Новые поля для профиля
 	first_name = Column(String(100), nullable=True)
 	last_name = Column(String(100), nullable=True)
 	avatar_url = Column(Text, nullable=True)
@@ -33,5 +31,10 @@ class User(Base):
 	is_verified = Column(Boolean, default=False)
 	last_login = Column(DateTime(timezone=True), nullable=True)
 
-	# Relationship
+	# Relationships
 	streams = relationship("Stream", back_populates="author")
+	user_themes = relationship("UserThemes", back_populates="user", cascade="all, delete-orphan")
+    
+	@property
+	def themes(self):
+	    return [ut.theme for ut in self.user_themes]
