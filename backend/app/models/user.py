@@ -33,8 +33,8 @@ class User(Base):
 
 	# Relationships
 	streams = relationship("Stream", back_populates="author")
-	user_themes = relationship("UserThemes", back_populates="user", cascade="all, delete-orphan")
+	user_theme = relationship("Usertheme", back_populates="user", cascade="all, delete-orphan")
     
 	@property
-	def themes(self):
-	    return [ut.theme for ut in self.user_themes]
+	def theme(self):
+	    return [ut.theme for ut in self.user_theme]

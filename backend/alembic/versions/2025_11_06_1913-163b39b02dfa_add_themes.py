@@ -1,4 +1,4 @@
-"""add_themes
+"""add_theme
 
 Revision ID: 163b39b02dfa
 Revises: b03a697fc7c8
@@ -19,8 +19,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade():
-    # 1. Создаем таблицу themes если ее нет
-    op.create_table('themes',
+    # 1. Создаем таблицу theme если ее нет
+    op.create_table('theme',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('name', sa.String(length=255), nullable=False),
         sa.Column('description', sa.Text(), nullable=True),
@@ -36,7 +36,7 @@ def upgrade():
         sa.Column('theme_id', sa.Integer(), nullable=False),
         sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
         sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['theme_id'], ['themes.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['theme_id'], ['theme.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id')
     )
     
@@ -47,7 +47,7 @@ def upgrade():
         sa.Column('theme_id', sa.Integer(), nullable=False),
         sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
         sa.ForeignKeyConstraint(['stream_id'], ['streams.id'], ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['theme_id'], ['themes.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['theme_id'], ['theme.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id')
     )
     
@@ -59,11 +59,11 @@ def upgrade():
     op.create_index('ix_stream_theme_stream_id', 'stream_theme', ['stream_id'])
     op.create_index('ix_stream_theme_theme_id', 'stream_theme', ['theme_id'])
     
-    op.create_index('ix_themes_id', 'themes', ['id'])
-    op.create_index('ix_themes_name', 'themes', ['name'])
+    op.create_index('ix_theme_id', 'theme', ['id'])
+    op.create_index('ix_theme_name', 'theme', ['name'])
     
     # 5. Наполняем тематики
-    themes_table = sa.table('themes',
+    theme_table = sa.table('theme',
         sa.column('name', sa.String),
         sa.column('description', sa.Text)
     )
@@ -71,4 +71,4 @@ def upgrade():
 def downgrade():
     op.drop_table('stream_theme')
     op.drop_table('user_theme')
-    op.drop_table('themes')
+    op.drop_table('theme')

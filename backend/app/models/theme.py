@@ -4,7 +4,7 @@ from sqlalchemy.orm import relationship
 from app.database import Base
 
 class Theme(Base):
-    __tablename__ = "themes"
+    __tablename__ = "theme"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), unique=True, nullable=False)
@@ -12,13 +12,13 @@ class Theme(Base):
     created_at = Column(DateTime, server_default=func.now())
     
     # Relationships
-    user_themes = relationship("UserThemes", back_populates="theme", cascade="all, delete-orphan")
-    stream_themes = relationship("StreamTheme", back_populates="theme", cascade="all, delete-orphan")
+    user_theme = relationship("Usertheme", back_populates="theme", cascade="all, delete-orphan")
+    stream_theme = relationship("StreamTheme", back_populates="theme", cascade="all, delete-orphan")
 
     @property
     def users(self):
-        return [ut.user for ut in self.user_themes]
+        return [ut.user for ut in self.user_theme]
 
     @property
     def streams(self):
-        return [st.stream for st in self.stream_themes]
+        return [st.stream for st in self.stream_theme]

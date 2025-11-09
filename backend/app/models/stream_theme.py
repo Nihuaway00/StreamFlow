@@ -4,8 +4,8 @@ from sqlalchemy.orm import relationship
 from app.database import Base
 from app.utils.uuid import gen_uuid
 
-class UserThemes(Base):
-    __tablename__ = "user_theme"
+class StreamTheme(Base):
+    __tablename__ = "stream_theme"
 
     def __init__(self, **kwargs):
         self.id = gen_uuid()
@@ -13,10 +13,10 @@ class UserThemes(Base):
 
     id = Column(UUID, primary_key=True)
     
-    user_id = Column(UUID, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    category_id = Column(Integer, ForeignKey("categories.id", ondelete="CASCADE"), nullable=False)
+    stream_id = Column(UUID, ForeignKey("streams.id", ondelete="CASCADE"), nullable=False)
+    theme_id = Column(Integer, ForeignKey("theme.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
 
     # Relationships
-    user = relationship("User", back_populates="user_themes")
-    theme = relationship("Theme", back_populates="user_themes")
+    stream = relationship("Stream", back_populates="stream_theme")
+    theme = relationship("Theme", back_populates="user_theme")
