@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext.jsx'
 import { streamAPI } from './services/api'
 import Login from './components/Auth/Login'
 import Register from './components/Auth/Register'
 import Header from './components/Layout/Header'
 import Profile from './components/Profile/Profile'
+import CreateStream from './components/Stream/CreateStream'
+import backgroundImage from './background.png'
+import StreamPage from './components/Stream/StreamPage'
 
 function App() {
   const [streams, setStreams] = useState([])
   const [loading, setLoading] = useState(true)
 
-  // Загружаем стримы с бэкенда
   useEffect(() => {
     const fetchStreams = async () => {
       try {
@@ -31,7 +33,6 @@ function App() {
     fetchStreams()
   }, [])
 
-  // Функция для получения градиента по индексу
   const getGradient = (index) => {
     const gradients = [
       'linear-gradient(45deg, #ff6b35, #ff8e53)',
@@ -47,7 +48,6 @@ function App() {
     return gradients[index % gradients.length]
   }
 
-  // Функция для получения эмодзи по названию стрима
   const getStreamEmoji = (title) => {
     if (!title) return '🎥'
     const lowerTitle = title.toLowerCase()
@@ -66,7 +66,7 @@ function App() {
     <AuthProvider>
       <Router>
         <div className="app" style={{ 
-          background: '#0e0e10', 
+          background: `url(${backgroundImage}) center/cover fixed`,
           minHeight: '100vh', 
           color: 'white',
           fontFamily: 'Arial, sans-serif',
@@ -78,7 +78,9 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/stream" element={<CreateStream />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/stream/:streamId" element={<StreamPage />} />
             <Route path="/" element={
               <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
                 
@@ -107,54 +109,59 @@ function App() {
                     marginBottom: '40px'
                   }}>
                     {streams.map((stream, index) => (
-                      <div 
+                      <Link 
                         key={stream.id}
-                        style={{
-                          background: '#18181b',
-                          borderRadius: '8px',
-                          overflow: 'hidden',
-                          border: '1px solid #333',
-                          transition: 'transform 0.2s',
-                          cursor: 'pointer'
-                        }} 
-                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                        to={`/stream/${stream.id}`}
+                        style={{ textDecoration: 'none' }}
                       >
-                        <div style={{
-                          background: getGradient(index),
-                          height: '180px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'white',
-                          fontSize: '20px',
-                          fontWeight: 'bold'
-                        }}>
-                          {getStreamEmoji(stream.title)} {stream.author?.username || 'Streamer'}
-                        </div>
-                        <div style={{ padding: '15px' }}>
-                          <h3 style={{ margin: '0 0 10px 0', color: '#efeff1' }}>
-                            {stream.title || 'Название стрима'}
-                          </h3>
-                          <p style={{ color: '#adadb8', marginBottom: '15px' }}>
-                            {stream.author?.username || 'Streamer'}
-                          </p>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: '#adadb8' }}>
-                              👁️ {stream.viewers_count || 0}
-                            </span>
-                            <span style={{ 
-                              background: stream.status === 'live' ? '#e91916' : '#666', 
-                              color: 'white', 
-                              padding: '2px 8px', 
-                              borderRadius: '4px', 
-                              fontSize: '12px' 
-                            }}>
-                              {stream.status === 'live' ? 'LIVE' : 'OFFLINE'}
-                            </span>
+                        <div 
+                          style={{
+                            background: '#18181b',
+                            borderRadius: '8px',
+                            overflow: 'hidden',
+                            border: '1px solid #333',
+                            transition: 'transform 0.2s',
+                            cursor: 'pointer'
+                          }} 
+                          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                        >
+                          <div style={{
+                            background: getGradient(index),
+                            height: '180px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            fontSize: '20px',
+                            fontWeight: 'bold'
+                          }}>
+                            {getStreamEmoji(stream.title)} {stream.author?.username || 'Streamer'}
+                          </div>
+                          <div style={{ padding: '15px' }}>
+                            <h3 style={{ margin: '0 0 10px 0', color: '#efeff1' }}>
+                              {stream.title || 'Название стрима'}
+                            </h3>
+                            <p style={{ color: '#adadb8', marginBottom: '15px' }}>
+                              {stream.author?.username || 'Streamer'}
+                            </p>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#adadb8' }}>
+                                👁️ {stream.viewers_count || 0}
+                              </span>
+                              <span style={{ 
+                                background: stream.status === 'live' ? '#e91916' : '#666', 
+                                color: 'white', 
+                                padding: '2px 8px', 
+                                borderRadius: '4px', 
+                                fontSize: '12px' 
+                              }}>
+                                {stream.status === 'live' ? 'LIVE' : 'OFFLINE'}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      </Link>
                     ))}
                   </div>
                 )}
@@ -173,30 +180,36 @@ function App() {
                     Присоединяйся к сообществу стримеров и делись своим контентом с тысячами зрителей
                   </p>
                   <div>
-                    <a href="/register" style={{ 
-                      background: '#9147ff', 
-                      color: 'white', 
-                      padding: '12px 24px', 
-                      borderRadius: '4px',
-                      textDecoration: 'none',
-                      marginRight: '15px',
-                      fontSize: '16px',
-                      display: 'inline-block'
-                    }}>
-                      🎥 Начать стримить
-                    </a>
-                    {!localStorage.getItem('access_token') && (
-                      <a href="/login" style={{ 
-                        color: '#9147ff', 
+                    <Link 
+                      to="/stream" 
+                      style={{ 
+                        background: '#9147ff', 
+                        color: 'white', 
                         padding: '12px 24px', 
-                        border: '1px solid #9147ff',
                         borderRadius: '4px',
                         textDecoration: 'none',
+                        marginRight: '15px',
                         fontSize: '16px',
                         display: 'inline-block'
-                      }}>
+                      }}
+                    >
+                      🎥 Начать стримить
+                    </Link>
+                    {!localStorage.getItem('access_token') && (
+                      <Link 
+                        to="/login"
+                        style={{ 
+                          color: '#9147ff', 
+                          padding: '12px 24px', 
+                          border: '1px solid #9147ff',
+                          borderRadius: '4px',
+                          textDecoration: 'none',
+                          fontSize: '16px',
+                          display: 'inline-block'
+                        }}
+                      >
                         Войти в аккаунт
-                      </a>
+                      </Link>
                     )}
                   </div>
                 </div>

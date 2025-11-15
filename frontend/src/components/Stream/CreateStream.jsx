@@ -1,0 +1,429 @@
+import React, { useState } from 'react'
+import { useAuth } from '../../context/AuthContext'
+import { streamAPI } from '../../services/api'
+
+const CreateStream = () => {
+  const { user } = useAuth()
+  const [streamData, setStreamData] = useState({
+    title: '',
+    description: '',
+    category: 'games',
+    isPublic: true
+  })
+  const [loading, setLoading] = useState(false)
+  const [createdStream, setCreatedStream] = useState(null)
+
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target
+    setStreamData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }))
+  }
+
+  const handleStartStream = async () => {
+    if (!streamData.title.trim()) {
+      alert('Введите название стрима')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await streamAPI.createStream({
+        title: streamData.title,
+        description: streamData.description
+      })
+      
+      setCreatedStream(response.data)
+      alert(`Стрим "${streamData.title}" создан! Настройте OBS и начните трансляцию.`)
+      
+    } catch (error) {
+      console.error('Ошибка создания стрима:', error)
+      alert('Ошибка создания стрима. Проверьте подключение к бэкенду.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text)
+    alert('Скопировано в буфер обмена!')
+  }
+
+  // Используем данные из API если стрим создан, иначе показываем заглушки
+  const streamKey = createdStream?.stream_key || `live_${user?.username}_${Date.now()}`
+  const rtmpUrl = createdStream?.rtmp_url || `rtmp://localhost:1935/live`
+  const hlsUrl = createdStream?.hls_url || `http://localhost:8080/live/${streamKey}/index.m3u8`
+
+  return (
+    <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
+      
+      {/* ЗАГОЛОВОК */}
+      <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+        <h1 style={{ fontSize: '36px', marginBottom: '10px' }}>🎥 Начать стрим</h1>
+        <p style={{ color: '#adadb8', fontSize: '18px' }}>
+          Настройте трансляцию и начните вещание
+        </p>
+      </div>
+
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: '30px'
+      }}>
+        
+        {/* ЛЕВАЯ КОЛОНКА - НАСТРОЙКИ СТРИМА */}
+        <div>
+          
+          {/* ОСНОВНЫЕ НАСТРОЙКИ */}
+          <div style={{
+            background: '#18181b',
+            borderRadius: '8px',
+            padding: '25px',
+            marginBottom: '20px',
+            border: '1px solid #333'
+          }}>
+            <h2 style={{ marginBottom: '20px', color: '#efeff1' }}>📝 Основные настройки</h2>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              
+              {/* НАЗВАНИЕ СТРИМА */}
+              <div>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: '8px', 
+                  color: '#adadb8',
+                  fontWeight: '500'
+                }}>
+                  Название стрима *
+                </label>
+                <input
+                  type="text"
+                  name="title"
+                  value={streamData.title}
+                  onChange={handleInputChange}
+                  placeholder="Введите захватывающее название..."
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    background: '#0e0e10',
+                    border: '1px solid #333',
+                    borderRadius: '4px',
+                    color: 'white',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+
+              {/* ОПИСАНИЕ */}
+              <div>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: '8px', 
+                  color: '#adadb8',
+                  fontWeight: '500'
+                }}>
+                  Описание
+                </label>
+                <textarea
+                  name="description"
+                  value={streamData.description}
+                  onChange={handleInputChange}
+                  placeholder="Опишите что будет происходить в стриме..."
+                  rows="4"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    background: '#0e0e10',
+                    border: '1px solid #333',
+                    borderRadius: '4px',
+                    color: 'white',
+                    fontSize: '14px',
+                    resize: 'vertical',
+                    fontFamily: 'Arial, sans-serif'
+                  }}
+                />
+              </div>
+
+              {/* СТАТУС */}
+              {createdStream && (
+                <div style={{
+                  padding: '15px',
+                  background: '#00ff7f20',
+                  border: '1px solid #00ff7f',
+                  borderRadius: '4px',
+                  color: '#00ff7f'
+                }}>
+                  <strong>✅ Стрим создан успешно!</strong>
+                  <p style={{ margin: '5px 0 0 0', fontSize: '14px' }}>
+                    Статус: <strong>{createdStream.status}</strong>
+                  </p>
+                </div>
+              )}
+
+            </div>
+          </div>
+
+          {/* КНОПКА ЗАПУСКА */}
+          <button 
+            onClick={handleStartStream}
+            disabled={!streamData.title.trim() || loading}
+            style={{
+              width: '100%',
+              background: (!streamData.title.trim() || loading) ? '#333' : '#9147ff',
+              color: 'white',
+              border: 'none',
+              padding: '15px',
+              borderRadius: '4px',
+              cursor: (!streamData.title.trim() || loading) ? 'not-allowed' : 'pointer',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              transition: 'all 0.2s'
+            }}
+          >
+            {loading ? '🔄 Создание стрима...' : '🎥 Создать стрим'}
+          </button>
+
+        </div>
+
+        {/* ПРАВАЯ КОЛОНКА - НАСТРОЙКИ OBS */}
+        <div>
+          
+          {/* НАСТРОЙКИ OBS */}
+          <div style={{
+            background: '#18181b',
+            borderRadius: '8px',
+            padding: '25px',
+            marginBottom: '20px',
+            border: '1px solid #333'
+          }}>
+            <h2 style={{ marginBottom: '20px', color: '#efeff1' }}>⚙️ Настройки OBS</h2>
+            
+            {createdStream ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                
+                {/* СЕРВЕР */}
+                <div>
+                  <h3 style={{ marginBottom: '10px', color: '#adadb8', fontSize: '14px' }}>
+                    Сервер (Stream Service)
+                  </h3>
+                  <div style={{
+                    display: 'flex',
+                    gap: '10px'
+                  }}>
+                    <input
+                      type="text"
+                      value="Custom"
+                      readOnly
+                      style={{
+                        flex: 1,
+                        padding: '10px',
+                        background: '#0e0e10',
+                        border: '1px solid #333',
+                        borderRadius: '4px',
+                        color: '#adadb8',
+                        fontSize: '14px'
+                      }}
+                    />
+                    <button 
+                      onClick={() => copyToClipboard('Custom')}
+                      style={{
+                        background: '#333',
+                        color: '#efeff1',
+                        border: '1px solid #444',
+                        padding: '10px 15px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      📋 Копировать
+                    </button>
+                  </div>
+                </div>
+
+                {/* RTMP URL */}
+                <div>
+                  <h3 style={{ marginBottom: '10px', color: '#adadb8', fontSize: '14px' }}>
+                    RTMP URL (Server)
+                  </h3>
+                  <div style={{
+                    display: 'flex',
+                    gap: '10px'
+                  }}>
+                    <input
+                      type="text"
+                      value={rtmpUrl}
+                      readOnly
+                      style={{
+                        flex: 1,
+                        padding: '10px',
+                        background: '#0e0e10',
+                        border: '1px solid #333',
+                        borderRadius: '4px',
+                        color: '#adadb8',
+                        fontSize: '14px'
+                      }}
+                    />
+                    <button 
+                      onClick={() => copyToClipboard(rtmpUrl)}
+                      style={{
+                        background: '#333',
+                        color: '#efeff1',
+                        border: '1px solid #444',
+                        padding: '10px 15px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      📋 Копировать
+                    </button>
+                  </div>
+                </div>
+
+                {/* STREAM KEY */}
+                <div>
+                  <h3 style={{ marginBottom: '10px', color: '#adadb8', fontSize: '14px' }}>
+                    Ключ потока (Stream Key)
+                  </h3>
+                  <div style={{
+                    display: 'flex',
+                    gap: '10px'
+                  }}>
+                    <input
+                      type="text"
+                      value={streamKey}
+                      readOnly
+                      style={{
+                        flex: 1,
+                        padding: '10px',
+                        background: '#0e0e10',
+                        border: '1px solid #333',
+                        borderRadius: '4px',
+                        color: '#adadb8',
+                        fontSize: '14px'
+                      }}
+                    />
+                    <button 
+                      onClick={() => copyToClipboard(streamKey)}
+                      style={{
+                        background: '#333',
+                        color: '#efeff1',
+                        border: '1px solid #444',
+                        padding: '10px 15px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      📋 Копировать
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            ) : (
+              <div style={{
+                padding: '30px',
+                textAlign: 'center',
+                background: '#0e0e10',
+                borderRadius: '4px',
+                color: '#adadb8'
+              }}>
+                <p>Сначала создайте стрим чтобы получить настройки для OBS</p>
+              </div>
+            )}
+          </div>
+
+          {/* ИНФОРМАЦИЯ ДЛЯ ЗРИТЕЛЕЙ */}
+          {createdStream && (
+            <div style={{
+              background: '#18181b',
+              borderRadius: '8px',
+              padding: '25px',
+              border: '1px solid #333'
+            }}>
+              <h2 style={{ marginBottom: '15px', color: '#efeff1' }}>👁️ Ссылка для зрителей</h2>
+              
+              <div>
+                <h3 style={{ marginBottom: '10px', color: '#adadb8', fontSize: '14px' }}>
+                  HLS URL (для просмотра)
+                </h3>
+                <div style={{
+                  display: 'flex',
+                  gap: '10px'
+                }}>
+                  <input
+                    type="text"
+                    value={hlsUrl}
+                    readOnly
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      background: '#0e0e10',
+                      border: '1px solid #333',
+                      borderRadius: '4px',
+                      color: '#adadb8',
+                      fontSize: '14px'
+                    }}
+                  />
+                  <button 
+                    onClick={() => copyToClipboard(hlsUrl)}
+                    style={{
+                      background: '#333',
+                      color: '#efeff1',
+                      border: '1px solid #444',
+                      padding: '10px 15px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    📋 Копировать
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ 
+                marginTop: '15px',
+                padding: '15px',
+                background: '#0e0e10',
+                borderRadius: '4px',
+                border: '1px solid #333'
+              }}>
+                <h4 style={{ margin: '0 0 10px 0', color: '#efeff1', fontSize: '14px' }}>
+                  💡 Инструкция для OBS:
+                </h4>
+                <ol style={{ 
+                  margin: 0, 
+                  paddingLeft: '20px', 
+                  color: '#adadb8',
+                  fontSize: '12px',
+                  lineHeight: '1.5'
+                }}>
+                  <li>В OBS перейдите в Settings → Stream</li>
+                  <li>Service: <strong>Custom</strong></li>
+                  <li>Server: <strong>{rtmpUrl}</strong></li>
+                  <li>Stream Key: <strong>{streamKey}</strong></li>
+                  <li>Нажмите "Start Streaming"</li>
+                  <li>Зрители смогут смотреть по HLS ссылке</li>
+                </ol>
+              </div>
+
+            </div>
+          )}
+
+        </div>
+
+      </div>
+
+    </div>
+  )
+}
+
+export default CreateStream

@@ -111,7 +111,8 @@ const Header = () => {
                   borderRadius: '4px',
                   cursor: 'pointer',
                   fontSize: '14px',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s',
+                  marginBottom: '8px'
                 }}
                 onMouseEnter={(e) => e.target.style.background = '#333'}
                 onMouseLeave={(e) => e.target.style.background = 'transparent'}
