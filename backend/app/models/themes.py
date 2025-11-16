@@ -1,9 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text
-from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-
+from sqlalchemy.orm import relationship
 from app.database import Base
-
 
 class Theme(Base):
     __tablename__ = "themes"
@@ -12,7 +10,7 @@ class Theme(Base):
     name = Column(String(255), unique=True, nullable=False)
     description = Column(Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
-
+    
     # Relationships
     user_themes = relationship("UserThemes", back_populates="theme", cascade="all, delete-orphan")
     stream_themes = relationship("StreamTheme", back_populates="theme", cascade="all, delete-orphan")
