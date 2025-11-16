@@ -1,14 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.database import engine, Base, init_roles
-from app.api import auth, streams, webhooks, users
 
-# Создание таблиц
-Base.metadata.create_all(bind=engine)
+from app.api import auth, streams, webhooks, users
+from app.database import init_roles
 
 # Инициализация ролей
-init_roles()
 
+init_roles()
 app = FastAPI(
     title="Streaming Service API",
     version="1.0.0"
@@ -29,9 +27,11 @@ app.include_router(streams.router, prefix="/api/streams", tags=["streams"])
 app.include_router(webhooks.router, prefix="/api/webhooks", tags=["webhooks"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 
+
 @app.get("/")
 def read_root():
     return {"message": "Streaming Service API", "version": "1.0.0"}
+
 
 @app.get("/health")
 def health_check():

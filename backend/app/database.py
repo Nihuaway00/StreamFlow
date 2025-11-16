@@ -1,38 +1,45 @@
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.orm import declarative_base
+
 from app.config import settings
 
-engine = create_engine(settings.DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+engine = create_async_engine(settings.DATABASE_URL)
+AsyncSessionLocal = async_sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+    expire_on_commit=False,
+    class_=AsyncSession)
 Base = declarative_base()
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
-def init_roles():
-    """Инициализация ролей в БД при запуске приложения"""
+async def get_db():
+    async with AsyncSessionLocal() as session:
+        yield session
+
+
+async def init_roles():
     from app.models.role import Role
     from app.consts.role_dict import roles_dict
+    from sqlalchemy import select  # ← Добавь импорт
 
-    db = SessionLocal()
-    try:
-        # Проверяем и создаем роли из словаря
-        for role_name, role_id in roles_dict.items():
-            existing_role = db.query(Role).filter(Role.id == role_id).first()
-            if not existing_role:
-                new_role = Role(id=role_id, name=role_name)
-                db.add(new_role)
-                print(f"Создана роль: {role_name} (id={role_id})")
+    async with AsyncSessionLocal() as db:  # Лучше через context manager
+        try:
+            for role_name, role_id in roles_dict.items():
+                # ✅ Правильный async запрос
+                result = await db.execute(
+                    select(Role).where(Role.id == role_id)
+                )
+                existing_role = result.scalar_one_or_none()
 
-        db.commit()
-        print("Инициализация ролей завершена")
-    except Exception as e:
-        print(f"Ошибка при инициализации ролей: {e}")
-        db.rollback()
-    finally:
-        db.close()
+                if not existing_role:
+                    new_role = Role(id=role_id, name=role_name)
+                    db.add(new_role)
+                    print(f"Создана роль: {role_name} (id={role_id})")
+
+            await db.commit()
+            print("Инициализация ролей завершена")
+        except Exception as e:
+            print(f"Ошибка: {e}")
+            await db.rollback()
+            raise

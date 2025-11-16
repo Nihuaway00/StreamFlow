@@ -27,4 +27,3 @@ SQLAlchemy==2.0.23
 typing_extensions==4.15.0
 uvicorn==0.24.0
 alembic==1.13.1
-psycopg2-binary==2.9.11
