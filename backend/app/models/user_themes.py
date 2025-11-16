@@ -1,10 +1,8 @@
-from sqlalchemy import Column, Integer, DateTime, UUID, ForeignKey
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, DateTime, UUID, ForeignKey
 from sqlalchemy.sql import func
-
+from sqlalchemy.orm import relationship
 from app.database import Base
 from app.utils.uuid import gen_uuid
-
 
 class UserThemes(Base):
     __tablename__ = "user_theme"
@@ -14,9 +12,9 @@ class UserThemes(Base):
         super().__init__(id=self.id, **kwargs)
 
     id = Column(UUID, primary_key=True)
-
+    
     user_id = Column(UUID, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    theme_id = Column(Integer, ForeignKey("themes.id", ondelete="CASCADE"), nullable=False)
+    category_id = Column(Integer, ForeignKey("categories.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
 
     # Relationships
