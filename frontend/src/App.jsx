@@ -9,6 +9,7 @@ import Profile from './components/Profile/Profile'
 import CreateStream from './components/Stream/CreateStream'
 import backgroundImage from './background.png'
 import StreamPage from './components/Stream/StreamPage'
+import veschanieBackground from './veschanie.png';
 
 function App() {
   const [streams, setStreams] = useState([])
@@ -167,30 +168,29 @@ function App() {
                 )}
 
                 <div style={{
-                  background: 'linear-gradient(135deg, #18181b, #9147ff20)',
+                  background: `url(${veschanieBackground}) center/cover`,
                   padding: '30px',
                   borderRadius: '8px',
-                  border: '1px solid #333',
-                  textAlign: 'center'
+                  border: '1px solid #1b0606ff',
+                  textAlign: 'center',
+                  position: 'relative',
+                  height: '230px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
                 }}>
-                  <h2 style={{ marginBottom: '15px' }}>
-                    {localStorage.getItem('access_token') ? 'Начни своё вещание!' : 'Готов начать своё вещание?'}
-                  </h2>
-                  <p style={{ color: '#adadb8', marginBottom: '20px' }}>
-                    Присоединяйся к сообществу стримеров и делись своим контентом с тысячами зрителей
-                  </p>
-                  <div>
+                  <div style={{ marginTop: '105px' }}>
                     <Link 
                       to="/stream" 
                       style={{ 
-                        background: '#9147ff', 
+                        background: ('#300f615f', '#2b25345f', '#715797ff'),
                         color: 'white', 
-                        padding: '12px 24px', 
+                        padding: '12px 32px', 
                         borderRadius: '4px',
                         textDecoration: 'none',
-                        marginRight: '15px',
                         fontSize: '16px',
-                        display: 'inline-block'
+                        display: 'inline-block',
+                        marginLeft: '25px'
                       }}
                     >
                       🎥 Начать стримить
@@ -199,13 +199,14 @@ function App() {
                       <Link 
                         to="/login"
                         style={{ 
+                          background: 'rgba(255, 255, 255, 0.9)', 
                           color: '#9147ff', 
                           padding: '12px 24px', 
-                          border: '1px solid #9147ff',
                           borderRadius: '4px',
                           textDecoration: 'none',
                           fontSize: '16px',
-                          display: 'inline-block'
+                          display: 'inline-block',
+                          marginLeft: '15px'
                         }}
                       >
                         Войти в аккаунт
@@ -213,7 +214,6 @@ function App() {
                     )}
                   </div>
                 </div>
-
               </div>
             } />
           </Routes>
