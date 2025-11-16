@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, UUID, ForeignKey
+from sqlalchemy import Column, Integer, DateTime, UUID, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -19,4 +19,4 @@ class StreamTheme(Base):
 
     # Relationships
     stream = relationship("Stream", back_populates="stream_themes")
-    theme = relationship("Theme", back_populates="user_themes")
+    theme = relationship("Theme", back_populates="stream_themes")

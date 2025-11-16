@@ -14,7 +14,7 @@ class UserThemes(Base):
     id = Column(UUID, primary_key=True)
     
     user_id = Column(UUID, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    category_id = Column(Integer, ForeignKey("categories.id", ondelete="CASCADE"), nullable=False)
+    theme_id = Column(Integer, ForeignKey("themes.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
 
     # Relationships

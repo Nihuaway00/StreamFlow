@@ -9,6 +9,7 @@ from app.models.user_role import UserRole
 from app.schemas.auth import UserRegister, UserLogin, UserResponse, Token
 from app.models.user import User
 from app.utils.security import hash_password, verify_password, create_access_token
+
 from app.utils.uuid import gen_uuid
 
 router = APIRouter()
