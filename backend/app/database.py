@@ -21,12 +21,11 @@ async def get_db():
 async def init_roles():
     from app.models.role import Role
     from app.consts.role_dict import roles_dict
-    from sqlalchemy import select  # ← Добавь импорт
+    from sqlalchemy import select
 
     async with AsyncSessionLocal() as db:  # Лучше через context manager
         try:
             for role_name, role_id in roles_dict.items():
-                # ✅ Правильный async запрос
                 result = await db.execute(
                     select(Role).where(Role.id == role_id)
                 )
@@ -39,6 +38,32 @@ async def init_roles():
 
             await db.commit()
             print("Инициализация ролей завершена")
+        except Exception as e:
+            print(f"Ошибка: {e}")
+            await db.rollback()
+            raise
+
+
+async def init_themes():
+    from app.models import Theme
+    from sqlalchemy import select
+    from app.consts.theme_dict import ThemeEnum
+
+    async with AsyncSessionLocal() as db:
+        themes = ThemeEnum.to_list()
+        try:
+            for theme_name, theme_id in themes:
+                result = await db.execute(
+                    select(Theme).where(Theme.id == theme_id)
+                )
+                existing_theme = result.scalar_one_or_none()
+
+                if not existing_theme:
+                    new_theme = Theme(id=theme_id, name=theme_name)
+                    db.add(new_theme)
+                    print(f"Создана тема: {theme_name} (id={theme_id})")
+            await db.commit()
+            print("Инициализация тем завершена")
         except Exception as e:
             print(f"Ошибка: {e}")
             await db.rollback()

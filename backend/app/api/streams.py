@@ -7,11 +7,12 @@ from sqlalchemy.orm import selectinload
 
 from app.config import settings
 from app.database import get_db
+from app.models import Theme, StreamTheme
 from app.models.stream import Stream
 from app.models.user import User
 from app.schemas.stream import (
-	StreamCreate, StreamResponse, StreamListResponse,
-	StreamDetail, StreamMy, StreamPublic, StreamAuthor
+    StreamCreate, StreamResponse, StreamListResponse,
+    StreamDetail, StreamMy, StreamPublic, StreamAuthor
 )
 from app.utils.security import get_current_user, generate_stream_key
 
@@ -33,6 +34,24 @@ async def create_stream(
         stream_key=stream_key,
         status="offline"
     )
+
+    if stream_data.theme_ids:
+        theme_ids = stream_data.theme_ids
+        result = await db.execute(
+            select(Theme.id).where(Theme.id.in_(theme_ids))
+        )
+        existing_ids = set(result.scalars().all())
+
+        # Проверка
+        missing = set(theme_ids) - existing_ids
+        if missing:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Themes with ids {list(missing)} not found"
+            )
+
+        for theme_id in theme_ids:
+            db.add(StreamTheme(stream_id=new_stream.id, theme_id=theme_id))
 
     db.add(new_stream)
     await db.commit()
@@ -64,7 +83,10 @@ async def get_streams(
         db: AsyncSession = Depends(get_db)
 ):
     # Базовый запрос
-    query = select(Stream).options(selectinload(Stream.author))
+    query = (select(Stream)
+             .options(selectinload(Stream.author))
+             .options(selectinload(Stream.stream_themes).selectinload(StreamTheme.theme))
+             )
 
     if status:
         query = query.where(Stream.status == status)
@@ -88,7 +110,8 @@ async def get_streams(
             status=s.status,
             viewers_count=s.viewers_count,
             started_at=s.started_at,
-            author=StreamAuthor(id=s.author.id, username=s.author.username)
+            author=StreamAuthor(id=s.author.id, username=s.author.username),
+            themes=[th.id for th in s.themes]
         )
         for s in streams
     ]
@@ -106,7 +129,11 @@ async def get_my_streams(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    streams = (await db.execute(select(Stream).where(Stream.user_id == current_user.id))).scalars().all()
+    query = (select(Stream)
+             .options(selectinload(Stream.author))
+             .options(selectinload(Stream.stream_themes).selectinload(StreamTheme.theme))
+             )
+    streams = (await db.execute(query.where(Stream.user_id == current_user.id))).scalars().all()
 
     rtmp_url = f"rtmp://{settings.RTMP_SERVER_HOST}:{settings.RTMP_PORT}/live"
 
@@ -117,7 +144,8 @@ async def get_my_streams(
             status=s.status,
             stream_key=s.stream_key,
             rtmp_url=rtmp_url,
-            viewers_count=s.viewers_count
+            viewers_count=s.viewers_count,
+            themes=[th.id for th in s.themes]
         )
         for s in streams
     ]
@@ -127,7 +155,12 @@ async def get_my_streams(
 
 @router.get("/{stream_id}", response_model=StreamDetail)
 async def get_stream(stream_id: str, db: AsyncSession = Depends(get_db)):
-    stream = (await db.execute(select(Stream).options(selectinload(Stream.author)).where(Stream.id == stream_id))).scalars().first()
+    query = (select(Stream)
+             .options(selectinload(Stream.author))
+             .options(selectinload(Stream.stream_themes).selectinload(StreamTheme.theme))
+             )
+
+    stream = (await db.execute(query.where(Stream.id == stream_id))).scalars().first()
 
     if not stream:
         raise HTTPException(
@@ -148,5 +181,6 @@ async def get_stream(stream_id: str, db: AsyncSession = Depends(get_db)):
         hls_url=hls_url,
         started_at=stream.started_at,
         author=StreamAuthor(id=stream.author.id, username=stream.author.username),
-        created_at=stream.created_at
+        created_at=stream.created_at,
+        themes=[th.id for th in stream.themes]
     )

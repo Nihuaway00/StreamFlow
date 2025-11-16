@@ -7,6 +7,7 @@ from pydantic import BaseModel, UUID4
 class StreamCreate(BaseModel):
     title: str
     description: Optional[str] = None
+    theme_ids: Optional[list[int]] = None
 
 
 class StreamAuthor(BaseModel):
@@ -39,6 +40,7 @@ class StreamPublic(BaseModel):
     viewers_count: int
     started_at: Optional[datetime]
     author: StreamAuthor
+    themes: list[int] = []
 
     class Config:
         from_attributes = True
@@ -54,6 +56,7 @@ class StreamDetail(BaseModel):
     started_at: Optional[datetime]
     author: StreamAuthor
     created_at: datetime
+    themes: list[int] = []
 
     class Config:
         from_attributes = True
@@ -73,6 +76,7 @@ class StreamMy(BaseModel):
     stream_key: str
     rtmp_url: str
     viewers_count: int
+    themes: list[int] = []
 
     class Config:
         from_attributes = True
