@@ -1,8 +1,10 @@
-from sqlalchemy import Column, Integer, String, DateTime, UUID, ForeignKey
-from sqlalchemy.sql import func
+from sqlalchemy import Column, Integer, DateTime, UUID, ForeignKey
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+
 from app.database import Base
 from app.utils.uuid import gen_uuid
+
 
 class StreamTheme(Base):
     __tablename__ = "stream_theme"
@@ -12,11 +14,11 @@ class StreamTheme(Base):
         super().__init__(id=self.id, **kwargs)
 
     id = Column(UUID, primary_key=True)
-    
+
     stream_id = Column(UUID, ForeignKey("streams.id", ondelete="CASCADE"), nullable=False)
     theme_id = Column(Integer, ForeignKey("themes.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
 
     # Relationships
     stream = relationship("Stream", back_populates="stream_themes")
-    theme = relationship("Theme", back_populates="user_themes")
+    theme = relationship("Theme", back_populates="stream_themes")

@@ -1,31 +1,32 @@
-from pydantic import BaseModel, EmailStr, UUID4
 from typing import Optional
+
+from pydantic import BaseModel, EmailStr, UUID4
 
 
 class UserRegister(BaseModel):
-	email: EmailStr
-	username: str
-	password: str
+    email: EmailStr
+    username: str
+    password: str
 
 
 class UserLogin(BaseModel):
-	email: EmailStr
-	password: str
+    email: EmailStr
+    password: str
 
 
 class UserResponse(BaseModel):
-	id: UUID4
-	email: str
-	username: str
+    id: UUID4
+    email: str
+    username: str
 
-	class Config:
-		from_attributes = True
+    class Config:
+        from_attributes = True
 
 
 class Token(BaseModel):
-	access_token: str
-	token_type: str
+    access_token: str
+    token_type: str
 
 
 class TokenData(BaseModel):
-	email: Optional[str] = None
+    email: Optional[str] = None
