@@ -5,6 +5,13 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://user:password@postgres:5432/streaming_db"
 
+    # MinIO
+    MINIO_ENDPOINT: str = "play.min.io"
+    MINIO_ACCESSKEY: str = "Q3AM3UQ867SPQQA43P2F"
+    MINIO_SECRETKEY: str = "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG"
+    MINIO_BUCKET: str = "python-test-bucket"
+
+
     # JWT
     SECRET_KEY: str = "your-secret-key-change-in-production"
     ALGORITHM: str = "HS256"

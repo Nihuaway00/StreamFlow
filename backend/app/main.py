@@ -1,11 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, streams, webhooks, users, themes
+from app.api import auth, streams, webhooks, users, themes, files
+from app.config import settings
+from app.core.storage.service import StorageService
 from app.database import init_roles, init_themes
-
-# Инициализация ролей
-
+from app.dependencies.storage import get_minio_client
 
 app = FastAPI(
     title="Streaming Service API",
@@ -27,6 +27,10 @@ async def startup():
     try:
         await init_roles()
         await init_themes()
+
+        client = get_minio_client()
+        storage = StorageService(client, settings.MINIO_BUCKET)
+        storage.check_buckets()
     except Exception as e:
         print(f"STARTUP FAILED: {e}")
         raise  # Убей приложение, если инит не прошёл
@@ -38,6 +42,7 @@ app.include_router(streams.router, prefix="/api/streams", tags=["streams"])
 app.include_router(webhooks.router, prefix="/api/webhooks", tags=["webhooks"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(themes.router, prefix="/api/themes", tags=["themes"])
+app.include_router(files.router, prefix="/api/files", tags=["files"])
 
 
 @app.get("/")

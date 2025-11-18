@@ -26,6 +26,7 @@ class UserResponse(BaseModel):
     country: Optional[str]
     city: Optional[str]
     website: Optional[str]
+    avatar_url: Optional[str]
 
     class Config:
         from_attributes = True
@@ -40,6 +41,7 @@ class UserEditData(BaseModel):
     country: Optional[str] = Field(None, max_length=100)
     city: Optional[str] = Field(None, max_length=100)
     website: Optional[str] = None
+
 
     @field_validator('phone')
     @classmethod

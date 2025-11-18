@@ -37,3 +37,4 @@ SQLAlchemy==2.0.23
 starlette==0.35.1
 typing_extensions==4.15.0
 uvicorn==0.24.0
+minio~=7.2.18
