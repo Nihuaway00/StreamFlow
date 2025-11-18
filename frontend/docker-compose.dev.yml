@@ -41,6 +41,7 @@ services:
 
   storage:
     image: minio/minio
+    container_name: streamflow-storage
     command: server /data --console-address ":9090"
     restart: always
     ports:
