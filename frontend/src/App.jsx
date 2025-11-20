@@ -13,25 +13,48 @@ import veschanieBackground from './veschanie.png';
 
 function App() {
   const [streams, setStreams] = useState([])
+  const [liveStreams, setLiveStreams] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchStreams = async () => {
       try {
+        console.log('🔄 Запрашиваем стримы...')
+        
+        // Получаем ВСЕ стримы без лимита для LIVE
         const response = await streamAPI.getStreams({
-          limit: 9,
+          limit: 50, // Увеличиваем лимит
           page: 1
         })
+        
+        console.log('📊 Все стримы:', response.data.items)
         setStreams(response.data.items || [])
+        
+        // Фильтруем только LIVE стримы
+        const live = response.data.items.filter(stream => {
+          const isLive = stream.status === 'live' || stream.status === 'LIVE'
+          console.log(`Стрим "${stream.title}": статус="${stream.status}", isLive=${isLive}`)
+          return isLive
+        })
+        
+        console.log('🔴 Найдено LIVE стримов:', live.length)
+        console.log('📺 LIVE стримы:', live)
+        setLiveStreams(live)
+        
       } catch (error) {
         console.error('Error fetching streams:', error)
         setStreams([])
+        setLiveStreams([])
       } finally {
         setLoading(false)
       }
     }
 
     fetchStreams()
+
+    // Обновляем каждые 5 секунд
+    const interval = setInterval(fetchStreams, 5000)
+    return () => clearInterval(interval)
   }, [])
 
   const getGradient = (index) => {
@@ -63,6 +86,9 @@ function App() {
     return '🎥'
   }
 
+  // Показываем только первые 9 стримов в общем списке
+  const displayedStreams = streams.slice(0, 9)
+
   return (
     <AuthProvider>
       <Router>
@@ -85,10 +111,117 @@ function App() {
             <Route path="/" element={
               <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
                 
-                <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-                  <h1 style={{ fontSize: '36px', marginBottom: '10px' }}>🎥 Прямо сейчас в эфире</h1>
-                  <p style={{ color: '#adadb8', fontSize: '18px' }}>
-                    Присоединяйся к самым популярным стримам платформы
+                {/* БЛОК С АКТИВНЫМИ СТРИМАМИ */}
+                {liveStreams.length > 0 && (
+                  <div style={{ marginBottom: '40px' }}>
+                    <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+                      <h1 style={{ fontSize: '36px', marginBottom: '10px' }}>🔴 Прямо сейчас в эфире</h1>
+                      <p style={{ color: '#adadb8', fontSize: '18px' }}>
+                        Присоединяйтесь к живым трансляциям
+                      </p>
+                    </div>
+
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
+                      gap: '20px',
+                      marginBottom: '30px'
+                    }}>
+                      {liveStreams.map((stream, index) => (
+                        <Link 
+                          key={stream.id}
+                          to={`/stream/${stream.id}`}
+                          style={{ textDecoration: 'none' }}
+                        >
+                          <div 
+                            style={{
+                              background: '#18181b',
+                              borderRadius: '8px',
+                              overflow: 'hidden',
+                              border: '2px solid #e91916',
+                              transition: 'transform 0.2s',
+                              cursor: 'pointer',
+                              position: 'relative'
+                            }} 
+                            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                          >
+                            {/* Бейдж LIVE */}
+                            <div style={{
+                              position: 'absolute',
+                              top: '10px',
+                              left: '10px',
+                              background: '#e91916',
+                              color: 'white',
+                              padding: '5px 10px',
+                              borderRadius: '4px',
+                              fontSize: '12px',
+                              fontWeight: 'bold',
+                              zIndex: 2
+                            }}>
+                              🔴 LIVE
+                            </div>
+
+                            <div style={{
+                              background: getGradient(index),
+                              height: '200px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'white',
+                              fontSize: '24px',
+                              fontWeight: 'bold',
+                              position: 'relative'
+                            }}>
+                              {getStreamEmoji(stream.title)} {stream.author?.username || 'Streamer'}
+                              {/* Анимация пульсации для LIVE */}
+                              <div style={{
+                                position: 'absolute',
+                                top: '10px',
+                                right: '10px',
+                                width: '12px',
+                                height: '12px',
+                                background: '#e91916',
+                                borderRadius: '50%'
+                              }} />
+                            </div>
+                            <div style={{ padding: '15px' }}>
+                              <h3 style={{ margin: '0 0 10px 0', color: '#efeff1', fontSize: '18px' }}>
+                                {stream.title || 'Название стрима'}
+                              </h3>
+                              <p style={{ color: '#adadb8', marginBottom: '15px' }}>
+                                {stream.author?.username || 'Streamer'}
+                              </p>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ color: '#adadb8' }}>
+                                  👁️ {stream.viewers_count || 0} зрителей
+                                </span>
+                                <span style={{ 
+                                  background: '#9147ff', 
+                                  color: 'white', 
+                                  padding: '4px 12px', 
+                                  borderRadius: '4px', 
+                                  fontSize: '12px',
+                                  fontWeight: 'bold'
+                                }}>
+                                  СМОТРЕТЬ
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ВСЕ СТРИМЫ */}
+                <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+                  <h2 style={{ fontSize: '28px', marginBottom: '10px' }}>
+                    {liveStreams.length > 0 ? '🎥 Другие стримы' : '🎥 Все стримы'}
+                  </h2>
+                  <p style={{ color: '#adadb8', fontSize: '16px' }}>
+                    {liveStreams.length > 0 ? 'Откройте для себя все доступные трансляции' : 'Начните смотреть трансляции'}
                   </p>
                 </div>
 
@@ -96,10 +229,10 @@ function App() {
                   <div style={{ textAlign: 'center', padding: '40px' }}>
                     <p>Загрузка стримов...</p>
                   </div>
-                ) : streams.length === 0 ? (
+                ) : displayedStreams.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '40px' }}>
                     <p style={{ color: '#adadb8', fontSize: '18px' }}>
-                      Пока нет активных стримов
+                      Пока нет стримов
                     </p>
                   </div>
                 ) : (
@@ -109,7 +242,7 @@ function App() {
                     gap: '20px',
                     marginBottom: '40px'
                   }}>
-                    {streams.map((stream, index) => (
+                    {displayedStreams.map((stream, index) => (
                       <Link 
                         key={stream.id}
                         to={`/stream/${stream.id}`}
@@ -167,6 +300,7 @@ function App() {
                   </div>
                 )}
 
+                {/* КНОПКА НАЧАТЬ СТРИМ */}
                 <div style={{
                   background: `url(${veschanieBackground}) center/cover`,
                   padding: '30px',
@@ -222,5 +356,19 @@ function App() {
     </AuthProvider>
   )
 }
+
+// Добавляем CSS анимацию
+const style = document.createElement('style')
+style.textContent = `
+  @keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.3; }
+    100% { opacity: 1; }
+  }
+`
+document.head.appendChild(style)
+const streams = await streamAPI.getStreams({limit: 50})
+const statuses = streams.data.items.map(s => s.status)
+console.log('Все статусы:', [...new Set(statuses)])
 
 export default App

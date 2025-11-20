@@ -6,6 +6,16 @@ import shapka from './shapka.png' // Импортируем картинку
 const Header = () => {
   const { isAuthenticated, logout, user } = useAuth()
 
+  // Функция для получения URL аватара
+  const getAvatarUrl = () => {
+    if (user?.avatar_url) {
+      return `http://localhost:8000/api/files/?file_key=${user.avatar_url}`
+    }
+    return null
+  }
+
+  const avatarUrl = getAvatarUrl()
+
   return (
     <header style={{
       background: `url(${shapka}) center/cover no-repeat`, // Картинка как фон
@@ -90,12 +100,12 @@ const Header = () => {
                 🎥 Начать стрим
               </Link>
               
-              {/* КНОПКА ПРОФИЛЯ */}
+              {/* АВАТАРКА ПРОФИЛЯ */}
               <Link to="/profile" style={{
-                background: '#9147ff',
+                background: avatarUrl ? 'transparent' : '#9147ff',
                 color: 'white',
-                width: '35px',
-                height: '35px',
+                width: '40px',
+                height: '40px',
                 borderRadius: '50%',
                 border: '1px solid rgba(64, 27, 27, 0.47)',
                 display: 'flex',
@@ -105,11 +115,34 @@ const Header = () => {
                 fontSize: '16px',
                 fontWeight: 'bold',
                 textDecoration: 'none',
-                transition: 'all 0.2s'
+                transition: 'all 0.2s',
+                overflow: 'hidden',
+                position: 'relative'
               }}
-              onMouseEnter={(e) => e.target.style.background = '#772ce8'}
-              onMouseLeave={(e) => e.target.style.background = '#9147ff'}>
-                👤
+              onMouseEnter={(e) => {
+                if (!avatarUrl) {
+                  e.target.style.background = '#772ce8'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!avatarUrl) {
+                  e.target.style.background = '#9147ff'
+                }
+              }}
+              title="Профиль">
+                {avatarUrl ? (
+                  <img 
+                    src={avatarUrl} 
+                    alt="Avatar" 
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover'
+                    }}
+                  />
+                ) : (
+                  user?.username?.charAt(0).toUpperCase() || '👤'
+                )}
               </Link>
               
               <button 
@@ -124,8 +157,7 @@ const Header = () => {
                   cursor: 'pointer',
                   fontSize: '14px',
                   transition: 'all 0.2s',
-                  whiteSpace: 'nowrap',
-                  marginBottom: '10px'
+                  whiteSpace: 'nowrap'
                 }}
                 onMouseEnter={(e) => e.target.style.background = '#772ce8cd'}
                 onMouseLeave={(e) => e.target.style.background = '#9147ffad'}

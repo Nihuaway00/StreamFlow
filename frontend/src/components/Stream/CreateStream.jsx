@@ -52,8 +52,8 @@ const CreateStream = () => {
 
   // Используем данные из API если стрим создан, иначе показываем заглушки
   const streamKey = createdStream?.stream_key || `live_${user?.username}_${Date.now()}`
-  const rtmpUrl = createdStream?.rtmp_url || `rtmp://localhost:1935/live`
-  const hlsUrl = createdStream?.hls_url || `http://localhost:8080/live/${streamKey}/index.m3u8`
+  const rtmpUrl = 'rtmp://localhost:1935/live'
+  const hlsUrl = `http://localhost:8080/live/${streamKey}/index.m3u8`
 
   return (
     <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
@@ -351,7 +351,7 @@ const CreateStream = () => {
               
               <div>
                 <h3 style={{ marginBottom: '10px', color: '#adadb8', fontSize: '14px' }}>
-                  HLS URL (для просмотра)
+                  Ссылка для просмотра
                 </h3>
                 <div style={{
                   display: 'flex',
@@ -359,7 +359,7 @@ const CreateStream = () => {
                 }}>
                   <input
                     type="text"
-                    value={hlsUrl}
+                    value={`http://localhost:5173/stream/${createdStream.id}`}
                     readOnly
                     style={{
                       flex: 1,
@@ -372,7 +372,7 @@ const CreateStream = () => {
                     }}
                   />
                   <button 
-                    onClick={() => copyToClipboard(hlsUrl)}
+                    onClick={() => copyToClipboard(`http://localhost:5173/stream/${createdStream.id}`)}
                     style={{
                       background: '#333',
                       color: '#efeff1',
@@ -411,10 +411,9 @@ const CreateStream = () => {
                   <li>Server: <strong>{rtmpUrl}</strong></li>
                   <li>Stream Key: <strong>{streamKey}</strong></li>
                   <li>Нажмите "Start Streaming"</li>
-                  <li>Зрители смогут смотреть по HLS ссылке</li>
+                  <li>Зрители смогут смотреть по ссылке выше</li>
                 </ol>
               </div>
-
             </div>
           )}
 

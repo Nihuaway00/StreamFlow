@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Stream Player</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #111;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+        video {
+            width: 100%;
+            max-height: 70vh;
+            background: #000;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        .controls {
+            background: #1a1a1a;
+            padding: 25px;
+            border-radius: 12px;
+            margin-top: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        input {
+            flex: 1;
+            padding: 15px;
+            font-size: 16px;
+            border: 2px solid #333;
+            border-radius: 8px;
+            background: #2a2a2a;
+            color: white;
+            outline: none;
+            transition: border 0.3s;
+        }
+        input:focus {
+            border-color: #e50914;
+        }
+        button {
+            padding: 15px 40px;
+            font-size: 16px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #e50914 0%, #b20710 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(229, 9, 20, 0.4);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+            margin-top: 15px;
+            display: none;
+        }
+        .status.live {
+            background: linear-gradient(135deg, #0a8f08 0%, #065f05 100%);
+            animation: pulse 2s infinite;
+        }
+        .status.offline {
+            background: #8f0808;
+        }
+        .status.loading {
+            background: #555;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .live-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background: #ff0000;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: blink 1.5s infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        .info {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .info strong {
+            color: #e50914;
+        }
+        .error {
+            background: #8f0808;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #666;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎥 StreamFlow Player</h1>
+
+        <video id="video" controls autoplay muted></video>
+
+        <div class="controls">
+            <div class="input-group">
+                <input
+                    type="text"
+                    id="streamKey"
+                    placeholder="Вставьте stream key"
+                    autocomplete="off"
+                >
+                <button onclick="play()">▶️ Смотреть</button>
+            </div>
+
+            <div id="status" class="status"></div>
+            <div id="error" class="error"></div>
+        </div>
+
+        <div class="info">
+            <strong>📝 Как использовать:</strong><br>
+            1. Создайте стрим через API: <code>POST http://localhost:8000/api/streams</code><br>
+            2. Получите <strong>stream_key</strong> из ответа<br>
+            3. Начните трансляцию в OBS с этим ключом<br>
+            4. Вставьте stream_key в поле выше и нажмите "Смотреть"
+        </div>
+
+        <div class="footer">
+            StreamFlow Live Streaming Service | <a href="/stat" style="color: #666;">RTMP Stats</a>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const statusDiv = document.getElementById('status');
+        const errorDiv = document.getElementById('error');
+        const streamKeyInput = document.getElementById('streamKey');
+        let hls;
+
+        function showStatus(type, message) {
+            statusDiv.className = 'status ' + type;
+            statusDiv.style.display = 'block';
+            errorDiv.style.display = 'none';
+
+            if (type === 'live') {
+                statusDiv.innerHTML = '<span class="live-indicator"></span>' + message;
+            } else {
+                statusDiv.textContent = message;
+            }
+        }
+
+        function showError(message) {
+            errorDiv.textContent = '❌ ' + message;
+            errorDiv.style.display = 'block';
+            statusDiv.style.display = 'none';
+        }
+
+        function play() {
+            const streamKey = streamKeyInput.value.trim();
+
+            if (!streamKey) {
+                showError('Введите stream key!');
+                return;
+            }
+
+            // Формируем HLS URL (относительный путь)
+            const streamUrl = `/live/${streamKey}/index.m3u8`;
+
+            console.log('Loading stream:', streamUrl);
+            showStatus('loading', '⏳ Загрузка...');
+
+            // Уничтожаем предыдущий HLS
+            if (hls) {
+                hls.destroy();
+            }
+
+            // Проверка поддержки HLS
+            if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                // Safari
+                video.src = streamUrl;
+
+                video.addEventListener('loadedmetadata', function() {
+                    showStatus('live', 'ПРЯМОЙ ЭФИР');
+                    video.play();
+                });
+
+                video.addEventListener('error', function() {
+                    showError('Не удалось загрузить стрим. Убедитесь что трансляция активна.');
+                });
+
+            } else if (Hls.isSupported()) {
+                // Chrome/Firefox
+                hls = new Hls({
+                    debug: false,
+                    enableWorker: true,
+                    lowLatencyMode: true
+                });
+
+                hls.loadSource(streamUrl);
+                hls.attachMedia(video);
+
+                hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                    showStatus('live', 'ПРЯМОЙ ЭФИР');
+                    video.play();
+                });
+
+                hls.on(Hls.Events.ERROR, function(event, data) {
+                    if (data.fatal) {
+                        showError('Ошибка загрузки. Проверьте что стрим активен.');
+                        console.error('HLS Error:', data);
+                    }
+                });
+            } else {
+                showError('Ваш браузер не поддерживает HLS.');
+            }
+        }
+
+        // Загрузка из URL параметра
+        const urlParams = new URLSearchParams(window.location.search);
+        const streamKeyParam = urlParams.get('key');
+        if (streamKeyParam) {
+            streamKeyInput.value = streamKeyParam;
+            setTimeout(play, 500);
+        }
+
+        // Enter для воспроизведения
+        streamKeyInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                play();
+            }
+        });
+    </script>
+</body>
+</html>

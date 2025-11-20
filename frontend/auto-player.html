@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreamFlow Auto Player</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .status {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: #e91916;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 10;
+        }
+        video {
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 18px;
+        }
+        .error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ff4444;
+            text-align: center;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="status">🔴 LIVE</div>
+        <video id="video" controls autoplay muted></video>
+        <div id="loading" class="loading">⏳ Загрузка стрима...</div>
+        <div id="error" class="error" style="display: none;"></div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const loadingDiv = document.getElementById('loading');
+        const errorDiv = document.getElementById('error');
+        let hls;
+
+        // Автоматически получаем ключ из URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const streamKey = urlParams.get('key');
+
+        function showError(message) {
+            errorDiv.textContent = '❌ ' + message;
+            errorDiv.style.display = 'block';
+            loadingDiv.style.display = 'none';
+        }
+
+        function playStream() {
+            if (!streamKey) {
+                showError('Stream key не найден в URL');
+                return;
+            }
+
+            console.log('Auto-playing stream:', streamKey);
+
+            // Формируем HLS URL
+            const hlsUrl = `/live/${streamKey}/index.m3u8`;
+
+            // Уничтожаем предыдущий HLS
+            if (hls) {
+                hls.destroy();
+            }
+
+            // Проверка поддержки HLS
+            if (Hls.isSupported()) {
+                // Chrome/Firefox
+                hls = new Hls({
+                    debug: false,
+                    enableWorker: true,
+                    lowLatencyMode: true
+                });
+
+                hls.loadSource(hlsUrl);
+                hls.attachMedia(video);
+
+                hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                    console.log('Stream loaded successfully');
+                    loadingDiv.style.display = 'none';
+                    video.play();
+                });
+
+                hls.on(Hls.Events.ERROR, function(event, data) {
+                    console.error('HLS Error:', data);
+                    if (data.fatal) {
+                        switch(data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                showError('Стрим не найден. Проверьте что трансляция активна.');
+                                break;
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                showError('Ошибка видео потока');
+                                break;
+                            default:
+                                showError('Ошибка загрузки стрима');
+                                break;
+                        }
+                    }
+                });
+
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                // Safari
+                video.src = hlsUrl;
+                
+                video.addEventListener('loadedmetadata', function() {
+                    console.log('Stream loaded successfully');
+                    loadingDiv.style.display = 'none';
+                    video.play();
+                });
+
+                video.addEventListener('error', function() {
+                    showError('Не удалось загрузить стрим. Убедитесь что трансляция активна.');
+                });
+            } else {
+                showError('Ваш браузер не поддерживает HLS.');
+            }
+        }
+
+        // Автозапуск при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            playStream();
+        });
+    </script>
+</body>
+</html>

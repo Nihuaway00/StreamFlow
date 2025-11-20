@@ -44,6 +44,8 @@ export const authAPI = {
     return api.post('/auth/logout');
   },
   refreshToken: () => api.post('/auth/refresh'),
+  // ДОБАВЛЯЕМ ЭТОТ МЕТОД ↓
+  getCurrentUser: () => api.get('/users/me'),
 };
 
 export const streamAPI = {
@@ -58,7 +60,7 @@ export const isAuthenticated = () => {
   return !!localStorage.getItem('access_token');
 };
 
-// Функция для получения текущего пользователя
+// Функция для получения текущего пользователя (из localStorage)
 export const getCurrentUser = () => {
   const user = localStorage.getItem('user');
   return user ? JSON.parse(user) : null;

@@ -1,12 +1,16 @@
 import React, { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
+import  api  from '../../services/api'
 
 const Profile = () => {
-  const { user, logout } = useAuth()
+  const { user, logout, updateUser } = useAuth()
   const [showSettings, setShowSettings] = useState(false)
   const [username, setUsername] = useState(user?.username || '')
   const [usernameChanged, setUsernameChanged] = useState(false)
   const [selectedThemes, setSelectedThemes] = useState([])
+  const [avatarFile, setAvatarFile] = useState(null)
+  const [avatarPreview, setAvatarPreview] = useState(null)
+  const [isUploading, setIsUploading] = useState(false)
 
   const themes = [
     '🎮 Игры',
@@ -62,11 +66,59 @@ const Profile = () => {
     }
   }
 
+  const handleAvatarUpload = async () => {
+    if (!avatarFile) return
+    
+    setIsUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('avatar', avatarFile)
+
+      console.log('загрузка аватара..')
+      console.log('Токен:', localStorage.getItem('access_token'))
+      
+      const response = await api.post('/users/me', formData, {
+        headers: {
+          'Content-Type': `multipart/form-data`
+        }
+      })
+
+      console.log("Ответ от сервера после загрузки:")
+      
+      updateUser(response.data)
+      setAvatarPreview(null)
+      setAvatarFile(null)
+      alert("Аватар успешно обновлён!")
+
+    } catch (error) {
+      console.error('Error uploading avatar:', error)
+      alert('Ошибка при загрузке аватара')
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0]
+    if (file) {
+      // Проверяем размер файла (максимум 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Файл слишком большой. Максимальный размер: 5MB')
+        return
+      }
+      
+      // Проверяем тип файла
+      if (!file.type.startsWith('image/')) {
+        alert('Пожалуйста, выберите изображение')
+        return
+      }
+      
+      setAvatarFile(file)
+      setAvatarPreview(URL.createObjectURL(file))
+    }
+  }
+
   const handleSaveSettings = () => {
-    // Здесь ДОЛЖНА БЫТЬ И БУДЕТ НИКИТОСИК И ВАНЬКА логика сохранения настроек
-    // Здесь ДОЛЖНА БЫТЬ И БУДЕТ НИКИТОСИК И ВАНЬКА логика сохранения настроек
-    // Здесь ДОЛЖНА БЫТЬ И БУДЕТ НИКИТОСИК И ВАНЬКА логика сохранения настроек
-    // Здесь ДОЛЖНА БЫТЬ И БУДЕТ НИКИТОСИК И ВАНЬКА логика сохранения настроек
     // Здесь ДОЛЖНА БЫТЬ И БУДЕТ НИКИТОСИК И ВАНЬКА логика сохранения настроек
     alert('Настройки сохранены!')
     setShowSettings(false)
@@ -77,6 +129,19 @@ const Profile = () => {
       setUsername(e.target.value)
     }
   }
+
+  // Функция для получения URL аватара
+  const getAvatarUrl = () => {
+    if (avatarPreview) {
+      return avatarPreview
+    }
+    if (user?.avatar_url) {
+      return `http://localhost:8000/api/files/?file_key=${user.avatar_url}`
+    }
+    return null
+  }
+
+  const avatarUrl = getAvatarUrl()
 
   return (
     <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
@@ -95,7 +160,7 @@ const Profile = () => {
         <div style={{
           width: '80px',
           height: '80px',
-          background: 'linear-gradient(45deg, #9147ff, #772ce8)',
+          background: avatarUrl ? 'transparent' : 'linear-gradient(45deg, #9147ff, #772ce8)',
           borderRadius: '50%',
           display: 'flex',
           alignItems: 'center',
@@ -104,11 +169,27 @@ const Profile = () => {
           fontWeight: 'bold',
           color: 'white',
           cursor: 'pointer',
-          position: 'relative'
+          position: 'relative',
+          overflow: 'hidden'
         }}
-        onClick={() => setShowSettings(true)}
+        onClick={() => document.getElementById('avatar-input-main').click()}
         title="Нажмите чтобы сменить аватар">
-          {user?.username?.charAt(0).toUpperCase() || 'U'}
+          {avatarUrl ? (
+            <img 
+              src={avatarUrl} 
+              alt="Avatar" 
+              style={{width: '100%', height: '100%', objectFit: 'cover'}}
+            />
+          ) : (
+            user?.username?.charAt(0).toUpperCase() || 'U'
+          )}
+          <input
+            id="avatar-input-main"
+            type="file"
+            accept="image/*"
+            style={{display: 'none'}}
+            onChange={handleFileSelect}
+          />
           <div style={{
             position: 'absolute',
             bottom: '2px',
@@ -210,37 +291,89 @@ const Profile = () => {
                 alignItems: 'center',
                 gap: '15px'
               }}>
-                <div style={{
-                  width: '60px',
-                  height: '60px',
-                  background: 'linear-gradient(45deg, #9147ff, #772ce8)',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '24px',
-                  fontWeight: 'bold',
-                  color: 'white'
-                }}>
-                  {username.charAt(0).toUpperCase()}
+                <div 
+                  style={{
+                    width: '60px',
+                    height: '60px',
+                    background: avatarPreview ? 'transparent' : 'linear-gradient(45deg, #9147ff, #772ce8)',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '24px',
+                    fontWeight: 'bold',
+                    color: 'white',
+                    overflow: 'hidden',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => document.getElementById('avatar-input-modal').click()}
+                >
+                  {avatarPreview ? (
+                    <img 
+                      src={avatarPreview} 
+                      alt="Preview" 
+                      style={{width: '100%', height: '100%', objectFit: 'cover'}}
+                    />
+                  ) : user?.avatar_url ? (
+                    <img 
+                      src={`http://localhost:8000/api/files/?file_key=${user.avatar_url}`}
+                      alt="Avatar" 
+                      style={{width: '100%', height: '100%', objectFit: 'cover'}}
+                    />
+                  ) : (
+                    username.charAt(0).toUpperCase()
+                  )}
+                  <input
+                    id="avatar-input-modal"
+                    type="file"
+                    accept="image/*"
+                    style={{display: 'none'}}
+                    onChange={handleFileSelect}
+                  />
                 </div>
                 <div>
                   <p style={{ margin: '0 0 8px 0', color: '#adadb8', fontSize: '14px' }}>
                     Нажмите на аватар для загрузки нового
                   </p>
-                  <button style={{
-                    background: '#333',
-                    color: '#efeff1',
-                    border: '1px solid #444',
-                    padding: '8px 16px',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '14px'
-                  }}>
+                  <button 
+                    onClick={() => document.getElementById('avatar-input-modal').click()}
+                    style={{
+                      background: '#333',
+                      color: '#efeff1',
+                      border: '1px solid #444',
+                      padding: '8px 16px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      marginRight: '10px'
+                    }}
+                  >
                     📁 Выбрать файл
                   </button>
+                  {avatarFile && (
+                    <button 
+                      onClick={handleAvatarUpload}
+                      disabled={isUploading}
+                      style={{
+                        background: isUploading ? '#666' : '#9147ff',
+                        color: 'white',
+                        border: 'none',
+                        padding: '8px 16px',
+                        borderRadius: '4px',
+                        cursor: isUploading ? 'not-allowed' : 'pointer',
+                        fontSize: '14px'
+                      }}
+                    >
+                      {isUploading ? '📤 Загрузка...' : '💾 Сохранить'}
+                    </button>
+                  )}
                 </div>
               </div>
+              {avatarFile && (
+                <p style={{ margin: '10px 0 0 0', color: '#adadb8', fontSize: '12px' }}>
+                  Выбран файл: {avatarFile.name} ({(avatarFile.size / 1024 / 1024).toFixed(2)} MB)
+                </p>
+              )}
             </div>
 
             {/* ИМЯ ПОЛЬЗОВАТЕЛЯ */}

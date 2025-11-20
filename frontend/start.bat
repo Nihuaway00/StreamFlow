@@ -9,7 +9,7 @@ if not exist .env (
 
 REM Запускаем Docker сервисы
 echo 🐳 Starting Docker services (Backend + Postgres + Media Server)...
-docker-compose -f docker-compose.dev.yml up -d
+docker-compose up -d
 
 REM Ждем запуска сервисов
 echo ⏳ Waiting for services to be ready...
