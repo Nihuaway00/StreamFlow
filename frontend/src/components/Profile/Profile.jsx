@@ -1,9 +1,9 @@
-import React, {useEffect, useState} from 'react'
-import {useAuth} from '../../context/AuthContext'
+import React, { useEffect, useState } from 'react'
+import { useAuth } from '../../context/AuthContext'
 import api from '../../services/api'
 
 const Profile = () => {
-    const {user, logout, updateUser} = useAuth()
+    const { user, logout, updateUser } = useAuth()
     const [showSettings, setShowSettings] = useState(false)
     const [username, setUsername] = useState(user?.username || '')
     const [usernameChanged, setUsernameChanged] = useState(false)
@@ -11,18 +11,10 @@ const Profile = () => {
     const [avatarFile, setAvatarFile] = useState(null)
     const [avatarPreview, setAvatarPreview] = useState(null)
     const [isUploading, setIsUploading] = useState(false)
-
-    const themes = [
-        '🎮 Игры',
-        '🎵 Музыка',
-        '💻 Программирование',
-        '🎨 Творчество',
-        '🏆 Спорт',
-        '📚 Образование',
-        '🍿 Развлечения',
-        '🌍 Путешествия',
-        '🗣️ Общение и чаттинг'
-    ]
+    const [userStreams, setUserStreams] = useState([])
+    const [streamsLoading, setStreamsLoading] = useState(true)
+    const [backendThemes, setBackendThemes] = useState([])
+    const [themesLoading, setThemesLoading] = useState(true)
 
     const achievements = [
         {
@@ -54,6 +46,52 @@ const Profile = () => {
         }
     ]
 
+    // Загружаем данные при монтировании
+    useEffect(() => {
+        if (!user) return;
+
+        // Загружаем аватар если есть avatar_url
+        const loadAvatar = async () => {
+            if (user.avatar_url) {
+                try {
+                    const avatarUrl = `http://localhost:8000/api/files/?file_key=${user.avatar_url}`;
+                    setAvatarPreview(avatarUrl);
+                } catch (error) {
+                    console.error('Error loading avatar:', error);
+                }
+            }
+        };
+
+        // Загружаем стримы пользователя
+        const fetchUserStreams = async () => {
+            try {
+                const response = await api.get('/streams/my');
+                setUserStreams(response.data || []);
+            } catch (error) {
+                console.error('Error fetching user streams:', error);
+            } finally {
+                setStreamsLoading(false);
+            }
+        };
+
+        // Загружаем тематики с бэкенда
+        const fetchThemes = async () => {
+            try {
+                const response = await api.get('/themes/');
+                setBackendThemes(response.data);
+            } catch (error) {
+                console.error('Error fetching themes:', error);
+            } finally {
+                setThemesLoading(false);
+            }
+        };
+
+        loadAvatar();
+        fetchUserStreams();
+        fetchThemes();
+        setUsername(user.username || '');
+    }, [user])
+
     const calculateProgress = (progress, total) => {
         return total > 0 ? Math.min((progress / total) * 100, 100) : 0
     }
@@ -74,24 +112,24 @@ const Profile = () => {
             const formData = new FormData()
             formData.append('avatar', avatarFile)
 
-            console.log('загрузка аватара..')
-            console.log('Токен:', localStorage.getItem('access_token'))
+            console.log('🔄 Загрузка аватара...')
+            console.log('🔑 Токен:', localStorage.getItem('access_token'))
 
             const response = await api.post('/users/me', formData, {
                 headers: {
-                    'Content-Type': `multipart/form-data`
+                    'Content-Type': 'multipart/form-data'
                 }
             })
 
-            console.log("Ответ от сервера после загрузки:")
+            console.log("✅ Ответ от сервера:", response.data)
 
             updateUser(response.data)
-            setAvatarPreview(null)
+            setAvatarPreview(URL.createObjectURL(avatarFile))
             setAvatarFile(null)
             alert("Аватар успешно обновлён!")
 
         } catch (error) {
-            console.error('Error uploading avatar:', error)
+            console.error('❌ Ошибка загрузки аватара:', error)
             alert('Ошибка при загрузке аватара')
         } finally {
             setIsUploading(false)
@@ -118,10 +156,23 @@ const Profile = () => {
         }
     }
 
-    const handleSaveSettings = () => {
-        // Здесь ДОЛЖНА БЫТЬ И БУДЕТ НИКИТОСИК И ВАНЬКА логика сохранения настроек
-        alert('Настройки сохранены!')
-        setShowSettings(false)
+    const handleSaveSettings = async () => {
+        try {
+            // Здесь будет логика сохранения настроек
+            const response = await api.post('/users/me', {
+                first_name: user?.first_name,
+                last_name: user?.last_name,
+                bio: user?.bio,
+                // Добавь другие поля когда будут готовы на бэкенде
+            })
+            
+            updateUser(response.data)
+            alert('Настройки сохранены!')
+            setShowSettings(false)
+        } catch (error) {
+            console.error('Ошибка сохранения настроек:', error)
+            alert('Ошибка при сохранении настроек')
+        }
     }
 
     const handleUsernameChange = (e) => {
@@ -130,17 +181,44 @@ const Profile = () => {
         }
     }
 
-    useEffect(() => {
-        if(!user) return;
-        const getAvatarUrl = async () => {
-            const response = await api.post(`/files/?file_key=${user.avatar_url}`)
-            setAvatarPreview(response.data)
+    // Функция для получения русского названия тематики
+    const getThemeDisplayName = (themeName) => {
+        const themeNames = {
+            'gaming': '🎮 Игры',
+            'music': '🎵 Музыка', 
+            'just_chatting': '💬 Общение'
         }
+        return themeNames[themeName] || themeName
+    }
 
-        getAvatarUrl()
-    }, [user])
+    const getStreamEmoji = (title) => {
+        if (!title) return '🎥'
+        const lowerTitle = title.toLowerCase()
+        if (lowerTitle.includes('музыка') || lowerTitle.includes('трек') || lowerTitle.includes('концерт') || lowerTitle.includes('акустика')) return '🎵'
+        if (lowerTitle.includes('игра') || lowerTitle.includes('турнир') || lowerTitle.includes('cs2')) return '🎮'
+        if (lowerTitle.includes('dota') || lowerTitle.includes('дота')) return '⚔️'
+        if (lowerTitle.includes('minecraft') || lowerTitle.includes('майнкрафт')) return '⛏️'
+        if (lowerTitle.includes('общение') || lowerTitle.includes('chat')) return '💬'
+        if (lowerTitle.includes('valorant') || lowerTitle.includes('валорант')) return '🔫'
+        if (lowerTitle.includes('рисование') || lowerTitle.includes('арт') || lowerTitle.includes('искусство')) return '🎨'
+        if (lowerTitle.includes('путешествие') || lowerTitle.includes('irl')) return '🌍'
+        return '🎥'
+    }
 
-    console.log(avatarPreview)
+    const getGradient = (index) => {
+        const gradients = [
+            'linear-gradient(45deg, #ff6b35, #ff8e53)',
+            'linear-gradient(45deg, #9147ff, #772ce8)',
+            'linear-gradient(45deg, #00ff7f, #00cc66)',
+            'linear-gradient(45deg, #ff4757, #ff3742)',
+            'linear-gradient(45deg, #00d2d3, #00a8a8)',
+            'linear-gradient(45deg, #ff9ff3, #f368e0)',
+            'linear-gradient(45deg, #ff3838, #ff0d0d)',
+            'linear-gradient(45deg, #ff9f43, #ff7f00)',
+            'linear-gradient(45deg, #54a0ff, #2e86de)'
+        ]
+        return gradients[index % gradients.length]
+    }
 
     return (
         <div style={{padding: '20px', maxWidth: '1000px', margin: '0 auto'}}>
@@ -210,9 +288,19 @@ const Profile = () => {
                     <h1 style={{margin: '0 0 5px 0', fontSize: '24px'}}>
                         {user?.username || 'Пользователь'}
                     </h1>
+                    {user?.first_name && user?.last_name && (
+                        <p style={{margin: '0 0 5px 0', color: '#adadb8'}}>
+                            {user.first_name} {user.last_name}
+                        </p>
+                    )}
                     <p style={{margin: 0, color: '#adadb8'}}>
                         {user?.email || 'email@example.com'}
                     </p>
+                    {user?.bio && (
+                        <p style={{margin: '10px 0 0 0', color: '#efeff1', fontStyle: 'italic'}}>
+                            "{user.bio}"
+                        </p>
+                    )}
                     <p style={{margin: '10px 0 0 0', color: '#9147ff'}}>
                         📍 Участник StreamFlow
                     </p>
@@ -399,37 +487,41 @@ const Profile = () => {
                             )}
                         </div>
 
-                        {/* ТЕМАТИКИ */}
+                        {/* ТЕМАТИКИ С БЭКЕНДА */}
                         <div style={{marginBottom: '30px'}}>
                             <h3 style={{marginBottom: '15px', color: '#efeff1'}}>🎯 Интересные тематики</h3>
                             <p style={{margin: '0 0 15px 0', color: '#adadb8', fontSize: '14px'}}>
                                 Выберите темы, которые вам интересны (для рекомендаций)
                             </p>
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-                                gap: '10px'
-                            }}>
-                                {themes.map((theme) => (
-                                    <button
-                                        key={theme}
-                                        onClick={() => handleThemeToggle(theme)}
-                                        style={{
-                                            background: selectedThemes.includes(theme) ? '#9147ff' : '#333',
-                                            color: 'white',
-                                            border: 'none',
-                                            padding: '10px',
-                                            borderRadius: '6px',
-                                            cursor: 'pointer',
-                                            fontSize: '14px',
-                                            textAlign: 'left',
-                                            transition: 'all 0.2s'
-                                        }}
-                                    >
-                                        {theme}
-                                    </button>
-                                ))}
-                            </div>
+                            {themesLoading ? (
+                                <p style={{color: '#adadb8', fontSize: '14px'}}>Загрузка тематик...</p>
+                            ) : (
+                                <div style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                                    gap: '10px'
+                                }}>
+                                    {backendThemes.map((theme) => (
+                                        <button
+                                            key={theme.id}
+                                            onClick={() => handleThemeToggle(theme.name)}
+                                            style={{
+                                                background: selectedThemes.includes(theme.name) ? '#9147ff' : '#333',
+                                                color: 'white',
+                                                border: 'none',
+                                                padding: '10px',
+                                                borderRadius: '6px',
+                                                cursor: 'pointer',
+                                                fontSize: '14px',
+                                                textAlign: 'left',
+                                                transition: 'all 0.2s'
+                                            }}
+                                        >
+                                            {getThemeDisplayName(theme.name)}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         {/* КНОПКИ */}
@@ -471,7 +563,7 @@ const Profile = () => {
                 </div>
             )}
 
-            {/* ОСТАЛЬНАЯ ЧАСТЬ ПРОФИЛЯ (достижения и т.д.) */}
+            {/* ОСТАЛЬНАЯ ЧАСТЬ ПРОФИЛЯ */}
             <div style={{
                 display: 'grid',
                 gridTemplateColumns: '2fr 1fr',
@@ -499,8 +591,8 @@ const Profile = () => {
                                 fontSize: '12px',
                                 fontWeight: 'normal'
                             }}>
-                {achievements.filter(a => a.progress >= a.total).length}/{achievements.length}
-              </span>
+                                {achievements.filter(a => a.progress >= a.total).length}/{achievements.length}
+                            </span>
                         </h2>
 
                         <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
@@ -571,8 +663,8 @@ const Profile = () => {
                                                             fontSize: '10px',
                                                             fontWeight: 'bold'
                                                         }}>
-                              ✅ Выполнено
-                            </span>
+                                                            ✅ Выполнено
+                                                        </span>
                                                     )}
                                                 </div>
 
@@ -611,8 +703,8 @@ const Profile = () => {
                                                         minWidth: '60px',
                                                         fontWeight: isCompleted ? 'bold' : 'normal'
                                                     }}>
-                            {achievement.progress}/{achievement.total}
-                          </span>
+                                                        {achievement.progress}/{achievement.total}
+                                                    </span>
                                                 </div>
                                             </div>
                                         </div>
@@ -631,26 +723,68 @@ const Profile = () => {
                         border: '1px solid #333'
                     }}>
                         <h2 style={{marginBottom: '15px'}}>🎥 Мои стримы</h2>
-                        <div style={{
-                            background: '#0e0e10',
-                            padding: '15px',
-                            borderRadius: '4px',
-                            textAlign: 'center',
-                            color: '#adadb8'
-                        }}>
-                            <p>У вас пока нет активных стримов</p>
-                            <button style={{
-                                background: '#9147ff',
-                                color: 'white',
-                                border: 'none',
-                                padding: '10px 20px',
+                        
+                        {streamsLoading ? (
+                            <div style={{
+                                background: '#0e0e10',
+                                padding: '15px',
                                 borderRadius: '4px',
-                                cursor: 'pointer',
-                                marginTop: '10px'
+                                textAlign: 'center',
+                                color: '#adadb8'
                             }}>
-                                🎥 Начать первый стрим
-                            </button>
-                        </div>
+                                <p>Загрузка стримов...</p>
+                            </div>
+                        ) : userStreams.length === 0 ? (
+                            <div style={{
+                                background: '#0e0e10',
+                                padding: '15px',
+                                borderRadius: '4px',
+                                textAlign: 'center',
+                                color: '#adadb8'
+                            }}>
+                                <p>У вас пока нет стримов</p>
+                                <button style={{
+                                    background: '#9147ff',
+                                    color: 'white',
+                                    border: 'none',
+                                    padding: '10px 20px',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    marginTop: '10px'
+                                }}>
+                                    🎥 Начать первый стрим
+                                </button>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                {(Array.isArray(userStreams) ? userStreams.slice(0, 3) : []).map((stream, index) => (
+                                    <div key={stream.id} style={{
+                                        background: '#0e0e10',
+                                        padding: '15px',
+                                        borderRadius: '4px',
+                                        border: '1px solid #333'
+                                    }}>
+                                        <h4 style={{ margin: '0 0 8px 0', color: '#efeff1' }}>
+                                            {stream.title}
+                                        </h4>
+                                        <p style={{ margin: '0 0 8px 0', color: '#adadb8', fontSize: '14px' }}>
+                                            {stream.description || 'Без описания'}
+                                        </p>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#adadb8' }}>
+                                            <span>👁️ {stream.viewers_count || 0}</span>
+                                            <span style={{ 
+                                                background: stream.status === 'live' ? '#e91916' : '#666', 
+                                                color: 'white', 
+                                                padding: '2px 6px', 
+                                                borderRadius: '4px' 
+                                            }}>
+                                                {stream.status === 'live' ? 'LIVE' : 'OFFLINE'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                 </div>
@@ -716,9 +850,12 @@ const Profile = () => {
                     }}>
                         <h3 style={{marginBottom: '15px'}}>ℹ️ Информация</h3>
                         <div style={{color: '#adadb8', fontSize: '14px', lineHeight: '1.5'}}>
-                            <p>🎯 <strong>Статус:</strong> Новичок</p>
-                            <p>📅 <strong>Регистрация:</strong> Сегодня</p>
-                            <p>🌟 <strong>Достижения:</strong> 0/3 выполнено</p>
+                            <p>🎯 <strong>Статус:</strong> {user?.is_verified ? '✅ Подтвержден' : '🟡 Не подтвержден'}</p>
+                            <p>📅 <strong>Регистрация:</strong> {user?.created_at ? new Date(user.created_at).toLocaleDateString('ru-RU') : 'Неизвестно'}</p>
+                            <p>🌟 <strong>Достижения:</strong> {achievements.filter(a => a.progress >= a.total).length}/{achievements.length} выполнено</p>
+                            {user?.last_login && (
+                                <p>🕐 <strong>Последний вход:</strong> {new Date(user.last_login).toLocaleDateString('ru-RU')}</p>
+                            )}
                             {selectedThemes.length > 0 && (
                                 <p>🎯 <strong>Интересы:</strong> {selectedThemes.length} тем</p>
                             )}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { streamAPI } from '../../services/api'
 
@@ -7,17 +7,45 @@ const CreateStream = () => {
   const [streamData, setStreamData] = useState({
     title: '',
     description: '',
-    category: 'games',
-    isPublic: true
+    theme_ids: [] // Добавляем тематики
   })
+  const [themes, setThemes] = useState([]) // Стейт для тематик
   const [loading, setLoading] = useState(false)
+  const [themesLoading, setThemesLoading] = useState(true)
   const [createdStream, setCreatedStream] = useState(null)
 
+  // Загружаем тематики при монтировании
+  useEffect(() => {
+    const fetchThemes = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/themes/')
+        const themesData = await response.json()
+        setThemes(themesData)
+      } catch (error) {
+        console.error('Ошибка загрузки тематик:', error)
+      } finally {
+        setThemesLoading(false)
+      }
+    }
+    
+    fetchThemes()
+  }, [])
+
   const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target
+    const { name, value } = e.target
     setStreamData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: value
+    }))
+  }
+
+  // Обработчик выбора тематик
+  const handleThemeToggle = (themeId) => {
+    setStreamData(prev => ({
+      ...prev,
+      theme_ids: prev.theme_ids.includes(themeId)
+        ? prev.theme_ids.filter(id => id !== themeId) // Убираем если уже выбран
+        : [...prev.theme_ids, themeId] // Добавляем если не выбран
     }))
   }
 
@@ -31,7 +59,8 @@ const CreateStream = () => {
     try {
       const response = await streamAPI.createStream({
         title: streamData.title,
-        description: streamData.description
+        description: streamData.description,
+        theme_ids: streamData.theme_ids // Отправляем выбранные тематики
       })
       
       setCreatedStream(response.data)
@@ -50,7 +79,16 @@ const CreateStream = () => {
     alert('Скопировано в буфер обмена!')
   }
 
-  // Используем данные из API если стрим создан, иначе показываем заглушки
+  // Функция для получения русского названия тематики
+  const getThemeDisplayName = (themeName) => {
+    const themeNames = {
+      'gaming': '🎮 Игры',
+      'music': '🎵 Музыка', 
+      'just_chatting': '💬 Общение'
+    }
+    return themeNames[themeName] || themeName
+  }
+
   const streamKey = createdStream?.stream_key || `live_${user?.username}_${Date.now()}`
   const rtmpUrl = 'rtmp://localhost:1935/live'
   const hlsUrl = `http://localhost:8080/live/${streamKey}/index.m3u8`
@@ -145,6 +183,59 @@ const CreateStream = () => {
                 />
               </div>
 
+              {/* ТЕМАТИКИ */}
+              <div>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: '8px', 
+                  color: '#adadb8',
+                  fontWeight: '500'
+                }}>
+                  Тематики
+                </label>
+                {themesLoading ? (
+                  <p style={{ color: '#adadb8', fontSize: '14px' }}>Загрузка тематик...</p>
+                ) : (
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px'
+                  }}>
+                    {themes.map(theme => (
+                      <label 
+                        key={theme.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          cursor: 'pointer',
+                          padding: '8px',
+                          borderRadius: '4px',
+                          transition: 'background 0.2s',
+                          background: streamData.theme_ids.includes(theme.id) ? '#9147ff20' : 'transparent'
+                        }}
+                        onMouseEnter={(e) => e.target.style.background = '#9147ff10'}
+                        onMouseLeave={(e) => e.target.style.background = streamData.theme_ids.includes(theme.id) ? '#9147ff20' : 'transparent'}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={streamData.theme_ids.includes(theme.id)}
+                          onChange={() => handleThemeToggle(theme.id)}
+                          style={{
+                            width: '16px',
+                            height: '16px',
+                            cursor: 'pointer'
+                          }}
+                        />
+                        <span style={{ color: 'white', fontSize: '14px' }}>
+                          {getThemeDisplayName(theme.name)}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* СТАТУС */}
               {createdStream && (
                 <div style={{
@@ -158,6 +249,13 @@ const CreateStream = () => {
                   <p style={{ margin: '5px 0 0 0', fontSize: '14px' }}>
                     Статус: <strong>{createdStream.status}</strong>
                   </p>
+                  {streamData.theme_ids.length > 0 && (
+                    <p style={{ margin: '5px 0 0 0', fontSize: '14px' }}>
+                      Тематики: {streamData.theme_ids.map(id => 
+                        getThemeDisplayName(themes.find(t => t.id === id)?.name)
+                      ).join(', ')}
+                    </p>
+                  )}
                 </div>
               )}
 

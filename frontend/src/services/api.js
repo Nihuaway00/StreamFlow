@@ -66,4 +66,11 @@ export const getCurrentUser = () => {
   return user ? JSON.parse(user) : null;
 };
 
+// Прикол, пользователи с БЭКА!!!
+export const usersAPI = {
+  getCurrentUser: () => api.get('/users/me'),
+  getUser: (userId) => api.get(`/users/${userId}`),
+  updateUser: (userData) => api.post('/users/me', userData),
+};
+
 export default api;

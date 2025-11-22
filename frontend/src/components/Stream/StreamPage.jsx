@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { streamAPI } from '../../services/api'
-import StreamPlayer from './StreamPlayer' // Импортируем наш улучшенный плеер
+import StreamPlayer from './StreamPlayer'
 
 const StreamPage = () => {
   const { streamId } = useParams()
@@ -24,10 +24,29 @@ const StreamPage = () => {
 
     fetchStream()
 
-    // Опционально: обновляем данные стрима каждые 10 секунд
     const interval = setInterval(fetchStream, 10000)
     return () => clearInterval(interval)
   }, [streamId])
+
+  // Функция для получения русского названия тематики
+  const getThemeDisplayName = (themeName) => {
+    const themeNames = {
+      'gaming': '🎮 Игры',
+      'music': '🎵 Музыка', 
+      'just_chatting': '💬 Общение'
+    }
+    return themeNames[themeName] || themeName
+  }
+
+  // Функция для получения цвета тематики
+  const getThemeColor = (themeName) => {
+    const themeColors = {
+      'gaming': '#9147ff',
+      'music': '#00ff7f',
+      'just_chatting': '#00d2d3'
+    }
+    return themeColors[themeName] || '#9147ff'
+  }
 
   if (loading) return (
     <div style={{ padding: '50px', textAlign: 'center', color: 'white' }}>
@@ -70,12 +89,40 @@ const StreamPage = () => {
           <p style={{ color: '#adadb8', marginBottom: '15px' }}>
             {stream.description || 'Описание отсутствует'}
           </p>
+          
+          {/* ТЕМАТИКИ */}
+          {stream.themes && stream.themes.length > 0 && (
+            <div style={{ marginBottom: '15px' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {stream.themes.map((theme, index) => (
+                  <span
+                    key={theme.id}
+                    style={{
+                      background: `${getThemeColor(theme.name)}20`,
+                      color: getThemeColor(theme.name),
+                      border: `1px solid ${getThemeColor(theme.name)}`,
+                      padding: '4px 12px',
+                      borderRadius: '16px',
+                      fontSize: '12px',
+                      fontWeight: '500',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    {getThemeDisplayName(theme.name)}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          
           <div style={{ display: 'flex', gap: '20px', color: '#adadb8', flexWrap: 'wrap' }}>
             <span>👁️ {stream.viewers_count || 0} зрителей</span>
-            <span>🎮 {stream.category || 'Игры'}</span>
             <span>👤 {stream.author?.username || 'Streamer'}</span>
-            {stream.themes && stream.themes.length > 0 && (
-              <span>🏷️ {stream.themes.map(t => t.name).join(', ')}</span>
+            <span>📅 {new Date(stream.created_at).toLocaleDateString('ru-RU')}</span>
+            {stream.started_at && (
+              <span>⏱️ {new Date(stream.started_at).toLocaleTimeString('ru-RU')}</span>
             )}
           </div>
         </div>
