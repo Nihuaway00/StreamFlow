@@ -44,7 +44,6 @@ export const authAPI = {
     return api.post('/auth/logout');
   },
   refreshToken: () => api.post('/auth/refresh'),
-  // ДОБАВЛЯЕМ ЭТОТ МЕТОД ↓
   getCurrentUser: () => api.get('/users/me'),
 };
 
@@ -53,6 +52,8 @@ export const streamAPI = {
   getStreams: (params = {}) => api.get('/streams', { params }),
   getMyStreams: () => api.get('/streams/my'),
   getStream: (streamId) => api.get(`/streams/${streamId}`),
+  getUserPublicInfo: (userId) => api.get(`/users/${userId}`),
+  getThemes: () => api.get('/themes/'),
 };
 
 // Функция для проверки авторизации

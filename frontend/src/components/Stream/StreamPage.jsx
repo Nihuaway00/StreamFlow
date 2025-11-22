@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { streamAPI } from '../../services/api'
 import StreamPlayer from './StreamPlayer'
 
@@ -8,12 +8,23 @@ const StreamPage = () => {
   const [stream, setStream] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [streamerInfo, setStreamerInfo] = useState(null)
+  const [streamerLoading, setStreamerLoading] = useState(false)
+  const [themes, setThemes] = useState([])
+  const [themesLoading, setThemesLoading] = useState(false)
 
   useEffect(() => {
     const fetchStream = async () => {
       try {
         const response = await streamAPI.getStream(streamId)
+        console.log('📺 Полные данные стрима:', response.data)
+        console.log('🎯 Тематики стрима:', response.data.themes)
         setStream(response.data)
+        
+        // Если есть автор стрима, загружаем его публичные данные
+        if (response.data.author?.id) {
+          fetchStreamerInfo(response.data.author.id)
+        }
       } catch (err) {
         setError('Стрим не найден')
         console.error('Error fetching stream:', err)
@@ -22,7 +33,39 @@ const StreamPage = () => {
       }
     }
 
+    const fetchStreamerInfo = async (userId) => {
+      try {
+        setStreamerLoading(true)
+        // Используем API для получения публичных данных пользователя
+        const response = await streamAPI.getUserPublicInfo(userId)
+        setStreamerInfo(response.data)
+      } catch (err) {
+        console.error('Error fetching streamer info:', err)
+        // Если ошибка, используем базовую информацию из стрима
+        setStreamerInfo({
+          username: stream?.author?.username,
+          id: userId
+        })
+      } finally {
+        setStreamerLoading(false)
+      }
+    }
+
+    const fetchThemes = async () => {
+      try {
+        setThemesLoading(true)
+        const response = await streamAPI.getThemes()
+        console.log('🎨 Все тематики:', response.data)
+        setThemes(response.data)
+      } catch (err) {
+        console.error('Error fetching themes:', err)
+      } finally {
+        setThemesLoading(false)
+      }
+    }
+
     fetchStream()
+    fetchThemes()
 
     const interval = setInterval(fetchStream, 10000)
     return () => clearInterval(interval)
@@ -46,6 +89,62 @@ const StreamPage = () => {
       'just_chatting': '#00d2d3'
     }
     return themeColors[themeName] || '#9147ff'
+  }
+
+  // Функция для получения тематик стрима
+  const getStreamThemes = () => {
+    if (!stream.themes || !Array.isArray(stream.themes)) return []
+    
+    // Если тематики приходят как объекты с name
+    if (stream.themes.length > 0 && typeof stream.themes[0] === 'object') {
+      return stream.themes
+    }
+    
+    // Если тематики приходят как ID, находим их в общем списке
+    return stream.themes.map(themeId => {
+      return themes.find(theme => theme.id === themeId) || { id: themeId, name: 'unknown' }
+    }).filter(theme => theme.name !== 'unknown')
+  }
+
+  // Функция для отображения тематик
+  const renderThemes = () => {
+    const streamThemes = getStreamThemes()
+    
+    if (streamThemes.length === 0) {
+      return (
+        <div style={{ marginBottom: '15px' }}>
+          <p style={{ color: '#adadb8', fontSize: '14px' }}>
+            🎯 Тематики не указаны
+          </p>
+        </div>
+      )
+    }
+
+    return (
+      <div style={{ marginBottom: '15px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          {streamThemes.map((theme) => (
+            <span
+              key={theme.id}
+              style={{
+                background: `${getThemeColor(theme.name)}20`,
+                color: getThemeColor(theme.name),
+                border: `1px solid ${getThemeColor(theme.name)}`,
+                padding: '6px 12px',
+                borderRadius: '16px',
+                fontSize: '13px',
+                fontWeight: '500',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              {getThemeDisplayName(theme.name)}
+            </span>
+          ))}
+        </div>
+      </div>
+    )
   }
 
   if (loading) return (
@@ -78,7 +177,7 @@ const StreamPage = () => {
     }}>
       
       {/* ЛЕВАЯ ЧАСТЬ - ВИДЕОПЛЕЕР И ИНФО */}
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
         
         {/* ВИДЕОПЛЕЕР */}
         <StreamPlayer stream={stream} />
@@ -91,31 +190,7 @@ const StreamPage = () => {
           </p>
           
           {/* ТЕМАТИКИ */}
-          {stream.themes && stream.themes.length > 0 && (
-            <div style={{ marginBottom: '15px' }}>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {stream.themes.map((theme, index) => (
-                  <span
-                    key={theme.id}
-                    style={{
-                      background: `${getThemeColor(theme.name)}20`,
-                      color: getThemeColor(theme.name),
-                      border: `1px solid ${getThemeColor(theme.name)}`,
-                      padding: '4px 12px',
-                      borderRadius: '16px',
-                      fontSize: '12px',
-                      fontWeight: '500',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                  >
-                    {getThemeDisplayName(theme.name)}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
+          {renderThemes()}
           
           <div style={{ display: 'flex', gap: '20px', color: '#adadb8', flexWrap: 'wrap' }}>
             <span>👁️ {stream.viewers_count || 0} зрителей</span>
@@ -126,6 +201,184 @@ const StreamPage = () => {
             )}
           </div>
         </div>
+
+        {/* БЛОК СТРИМЕРА */}
+        {stream.author && (
+          <div style={{
+            background: '#18181b',
+            margin: '0 20px 20px 20px',
+            borderRadius: '8px',
+            padding: '20px',
+            border: '1px solid #333'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              marginBottom: '15px'
+            }}>
+              <h3 style={{ color: 'white', margin: 0 }}>🎮 О стримере</h3>
+              <Link 
+                to={`/profile/${stream.author.id}`}
+                style={{
+                  background: '#9147ff',
+                  color: 'white',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  textDecoration: 'none',
+                  fontSize: '14px',
+                  fontWeight: '500'
+                }}
+              >
+                📋 Перейти в профиль
+              </Link>
+            </div>
+
+            {streamerLoading ? (
+              <div style={{ 
+                padding: '20px', 
+                textAlign: 'center', 
+                color: '#adadb8',
+                background: '#0e0e10',
+                borderRadius: '4px'
+              }}>
+                Загрузка информации о стримере...
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-start' }}>
+                {/* АВАТАР СТРИМЕРА */}
+                <div style={{
+                  width: '60px',
+                  height: '60px',
+                  background: streamerInfo?.avatar_url ? 'transparent' : 'linear-gradient(45deg, #9147ff, #772ce8)',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '20px',
+                  fontWeight: 'bold',
+                  color: 'white',
+                  overflow: 'hidden',
+                  flexShrink: 0
+                }}>
+                  {streamerInfo?.avatar_url ? (
+                    <img 
+                      src={`http://localhost:8000/api/files/?file_key=${streamerInfo.avatar_url}`} 
+                      alt="Avatar" 
+                      style={{width: '100%', height: '100%', objectFit: 'cover'}}
+                    />
+                  ) : (
+                    (streamerInfo?.username || stream.author.username)?.charAt(0).toUpperCase() || 'S'
+                  )}
+                </div>
+
+                {/* ИНФОРМАЦИЯ О СТРИМЕРЕ */}
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                    <h4 style={{ 
+                      margin: 0, 
+                      color: 'white',
+                      fontSize: '18px'
+                    }}>
+                      {streamerInfo?.username || stream.author.username}
+                    </h4>
+                    {streamerInfo?.is_verified && (
+                      <span style={{
+                        background: '#9147ff',
+                        color: 'white',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                        fontWeight: 'bold'
+                      }}>
+                        ✅ Проверен
+                      </span>
+                    )}
+                  </div>
+
+                  {streamerInfo?.bio && (
+                    <p style={{ 
+                      color: '#adadb8', 
+                      margin: '0 0 10px 0',
+                      fontSize: '14px',
+                      lineHeight: '1.4'
+                    }}>
+                      {streamerInfo.bio}
+                    </p>
+                  )}
+
+                  {/* СТАТИСТИКА СТРИМЕРА */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                    gap: '10px',
+                    background: '#0e0e10',
+                    padding: '12px',
+                    borderRadius: '6px'
+                  }}>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ color: '#9147ff', fontSize: '16px', fontWeight: 'bold' }}>
+                        {streamerInfo?.total_streams || '?'}
+                      </div>
+                      <div style={{ color: '#adadb8', fontSize: '12px' }}>Стримов</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ color: '#00ff7f', fontSize: '16px', fontWeight: 'bold' }}>
+                        {streamerInfo?.total_viewers || '?'}
+                      </div>
+                      <div style={{ color: '#adadb8', fontSize: '12px' }}>Просмотров</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ color: '#00d2d3', fontSize: '16px', fontWeight: 'bold' }}>
+                        {streamerInfo?.followers_count || '?'}
+                      </div>
+                      <div style={{ color: '#adadb8', fontSize: '12px' }}>Подписчиков</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ 
+                        color: stream.status === 'live' ? '#00ff7f' : '#adadb8', 
+                        fontSize: '16px', 
+                        fontWeight: 'bold' 
+                      }}>
+                        {stream.status === 'live' ? '🟢 В эфире' : '🔴 Офлайн'}
+                      </div>
+                      <div style={{ color: '#adadb8', fontSize: '12px' }}>Статус</div>
+                    </div>
+                  </div>
+
+                  {/* ДОПОЛНИТЕЛЬНАЯ ИНФОРМАЦИЯ */}
+                  {(streamerInfo?.country || streamerInfo?.city) && (
+                    <div style={{ 
+                      marginTop: '10px',
+                      display: 'flex',
+                      gap: '15px',
+                      fontSize: '12px',
+                      color: '#adadb8'
+                    }}>
+                      {streamerInfo?.country && (
+                        <span>🌍 {streamerInfo.country}</span>
+                      )}
+                      {streamerInfo?.city && (
+                        <span>🏙️ {streamerInfo.city}</span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ДАТА РЕГИСТРАЦИИ */}
+                  {streamerInfo?.created_at && (
+                    <div style={{ 
+                      marginTop: '10px',
+                      fontSize: '12px',
+                      color: '#adadb8'
+                    }}>
+                      📅 Участник с {new Date(streamerInfo.created_at).toLocaleDateString('ru-RU')}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ПРАВАЯ ЧАСТЬ - ЧАТ */}
