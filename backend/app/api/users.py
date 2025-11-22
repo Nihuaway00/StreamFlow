@@ -1,16 +1,18 @@
 import logging
+from http.client import HTTPException
 from io import BytesIO
 
 from fastapi import APIRouter, Form, UploadFile, File
-from fastapi.params import Depends
+from fastapi import Depends, HTTPException, status
 from pydantic.json_schema import SkipJsonSchema
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.storage.service import StorageService
 from app.database import get_db
 from app.dependencies.storage import get_storage
 from app.models.user import User
-from app.schemas.users import UserResponse, UserEditData
+from app.schemas.users import UserResponse, UserEditData, UserPublicResponse
 from app.services.users.avatar import upload_avatar
 from app.utils.security import get_current_user
 
@@ -23,6 +25,23 @@ def get_user_data(
         current_user: User = Depends(get_current_user)
 ):
     return UserResponse.model_validate(current_user)
+
+
+@router.get('/{user_id}')
+async def get_user_public_data(
+        user_id: str,
+        db: AsyncSession = Depends(get_db)
+):
+    user = (await db.execute(select(User).where(User.id == user_id))).scalars().first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with id ${user_id} not found"
+        )
+
+    return UserPublicResponse.model_validate(user)
+
 
 
 @router.post("/me", response_model=UserResponse)

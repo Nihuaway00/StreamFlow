@@ -32,6 +32,28 @@ class UserResponse(BaseModel):
         from_attributes = True
 
 
+class UserPublicResponse(BaseModel):
+    id: UUID4
+    email: EmailStr
+    created_at: datetime
+    is_active: bool
+    is_verified: bool
+    last_login: Optional[datetime]
+
+    first_name: Optional[str]
+    last_name: Optional[str]
+    bio: Optional[str]
+    phone: Optional[str]
+    date_of_birth: Optional[date]
+    country: Optional[str]
+    city: Optional[str]
+    website: Optional[str]
+    avatar_url: Optional[str]
+
+    class Config:
+        from_attributes = True
+
+
 class UserEditData(BaseModel):
     first_name: Optional[str] = Field(None, min_length=2, max_length=50)
     last_name: Optional[str] = Field(None, min_length=2, max_length=50)
