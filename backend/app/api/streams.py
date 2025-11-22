@@ -35,7 +35,8 @@ async def create_stream(
         title=stream_data.title,
         description=stream_data.description,
         stream_key=stream_key,
-        status="offline"
+        status="offline",
+        is_deleted=False
     )
 
     if stream_data.theme_ids:

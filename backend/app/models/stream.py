@@ -34,7 +34,7 @@ class Stream(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    is_deleted = Column(Boolean())
+    is_deleted = Column(Boolean, default=False)
     deleted_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     # Relationship
     author = relationship("User", back_populates="streams")
