@@ -1,4 +1,4 @@
-from sqlalchemy import Column, UUID, Integer, String, Text, ForeignKey, DateTime
+from sqlalchemy import Column, UUID, Integer, String, Text, ForeignKey, DateTime, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -34,6 +34,8 @@ class Stream(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+    is_deleted = Column(Boolean())
+    deleted_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     # Relationship
     author = relationship("User", back_populates="streams")
     stream_themes = relationship("StreamTheme", back_populates="stream", cascade="all, delete-orphan")

@@ -1,5 +1,5 @@
 from app.schemas.auth import UserRegister, UserLogin, UserResponse, Token
-from app.schemas.stream import StreamCreate, StreamResponse, StreamDetail
+from app.schemas.streams import StreamCreate, StreamResponse, StreamDetail, StreamEdit
 
 __all__ = [
     "UserRegister",
@@ -8,5 +8,6 @@ __all__ = [
     "Token",
     "StreamCreate",
     "StreamResponse",
-    "StreamDetail"
+    "StreamDetail",
+    "StreamEdit"
 ]

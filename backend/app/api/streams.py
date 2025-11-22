@@ -2,18 +2,21 @@ from typing import Optional
 
 import math
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import settings
 from app.database import get_db
+from app.dependencies.streams import get_stream_service
 from app.models import Theme, StreamTheme
 from app.models.stream import Stream
 from app.models.user import User
-from app.schemas.stream import (
+from app.schemas.streams import (
     StreamCreate, StreamResponse, StreamListResponse,
-    StreamDetail, StreamMy, StreamPublic, StreamAuthor
+    StreamDetail, StreamPublic, StreamAuthor, StreamEdit
 )
+from app.services.streams import StreamService
 from app.utils.security import get_current_user, generate_stream_key
 
 router = APIRouter()
@@ -72,14 +75,12 @@ async def create_stream(
     }
 
 
-from sqlalchemy import select, func
-
-
 @router.get("", response_model=StreamListResponse)
 async def get_streams(
         page: int = Query(1, ge=1),
         limit: int = Query(20, ge=1, le=100),
         status: Optional[str] = Query(None),
+        show_deleted: Optional[bool] = Query(False),
         db: AsyncSession = Depends(get_db)
 ):
     # Базовый запрос
@@ -90,6 +91,9 @@ async def get_streams(
 
     if status:
         query = query.where(Stream.status == status)
+
+    if not show_deleted:
+        query = query.where(Stream.is_deleted == False)
 
     # Подсчёт total
     count_query = select(func.count()).select_from(query.subquery())
@@ -111,7 +115,12 @@ async def get_streams(
             viewers_count=s.viewers_count,
             started_at=s.started_at,
             author=StreamAuthor(id=s.author.id, username=s.author.username),
-            themes=[th.id for th in s.themes]
+            themes=[th.id for th in s.themes],
+            is_deleted=s.is_deleted,
+            deleted_at=s.deleted_at,
+            updatd_at=s.updated_at,
+            created_at=s.created_at
+
         )
         for s in streams
     ]
@@ -135,17 +144,23 @@ async def get_my_streams(
              )
     streams = (await db.execute(query.where(Stream.user_id == current_user.id))).scalars().all()
 
-    rtmp_url = f"rtmp://{settings.RTMP_SERVER_HOST}:{settings.RTMP_PORT}/live"
+    hls_url = f"rtmp://{settings.RTMP_SERVER_HOST}:{settings.RTMP_PORT}/live"
 
     items = [
-        StreamMy(
+        StreamDetail(
             id=s.id,
             title=s.title,
+            description=s.description,
             status=s.status,
-            stream_key=s.stream_key,
-            rtmp_url=rtmp_url,
             viewers_count=s.viewers_count,
-            themes=[th.id for th in s.themes]
+            started_at=s.started_at,
+            author=StreamAuthor(id=s.author.id, username=s.author.username),
+            themes=[th.id for th in s.themes],
+            is_deleted=s.is_deleted,
+            deleted_at=s.deleted_at,
+            updatd_at=s.updated_at,
+            created_at=s.created_at,
+            hls_url=hls_url,
         )
         for s in streams
     ]
@@ -181,6 +196,29 @@ async def get_stream(stream_id: str, db: AsyncSession = Depends(get_db)):
         hls_url=hls_url,
         started_at=stream.started_at,
         author=StreamAuthor(id=stream.author.id, username=stream.author.username),
+        themes=[th.id for th in stream.themes],
+        is_deleted=stream.is_deleted,
+        deleted_at=stream.deleted_at,
+        updatd_at=stream.updated_at,
         created_at=stream.created_at,
-        themes=[th.id for th in stream.themes]
     )
+
+
+@router.patch("/{stream_id}", response_model=StreamDetail)
+async def edit_stream(
+        stream_id: str,
+        new_data: StreamEdit,
+        current_user: User = Depends(get_current_user),
+        service: StreamService = Depends(get_stream_service)
+):
+    update_data = new_data.model_dump(exclude_unset=True)
+    return await service.edit_stream(stream_id, update_data, current_user)
+
+
+@router.delete("/{stream_id}")
+async def delete_stream(
+        stream_id: str,
+        current_user: User = Depends(get_current_user),
+        service: StreamService = Depends(get_stream_service),
+):
+    return await service.delete_stream(stream_id, current_user)

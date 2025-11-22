@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import Theme
-from app.schemas.theme import ThemeResponse
+from app.schemas.themes import ThemeResponse
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
