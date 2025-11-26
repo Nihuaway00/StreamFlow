@@ -11,6 +11,7 @@ import backgroundImage from './background.png'
 import StreamPage from './components/Stream/StreamPage'
 import veschanieBackground from './veschanie.png'
 import PublicProfile from './components/Profile/PublicProfile'
+import StreamSettings from './components/Stream/StreamSettings'
 
 function App() {
   const [streams, setStreams] = useState([])
@@ -110,6 +111,7 @@ function App() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/user/:userId" element={<PublicProfile />} />
             <Route path="/stream/:streamId" element={<StreamPage />} />
+            <Route path="/stream/:streamId/settings" element={<StreamSettings />} />
             <Route path="/" element={
               <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
                 

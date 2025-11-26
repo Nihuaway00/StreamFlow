@@ -12,7 +12,7 @@
       <excludeFolder url="file://$MODULE_DIR$/backend/.idea" />
       <excludeFolder url="file://$MODULE_DIR$/backend/.venv" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.9 (StreamFlow)" jdkType="Python SDK" />
+    <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>

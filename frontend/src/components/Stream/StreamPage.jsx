@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { streamAPI } from '../../services/api'
+import { useAuth } from '../../context/AuthContext'
 import StreamPlayer from './StreamPlayer'
 
 const StreamPage = () => {
   const { streamId } = useParams()
+  const navigate = useNavigate()
+  const { user } = useAuth()
   const [stream, setStream] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -12,13 +15,12 @@ const StreamPage = () => {
   const [streamerLoading, setStreamerLoading] = useState(false)
   const [themes, setThemes] = useState([])
   const [themesLoading, setThemesLoading] = useState(false)
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false)
 
   useEffect(() => {
     const fetchStream = async () => {
       try {
         const response = await streamAPI.getStream(streamId)
-        console.log('📺 Полные данные стрима:', response.data)
-        console.log('🎯 Тематики стрима:', response.data.themes)
         setStream(response.data)
         
         // Если есть автор стрима, загружаем его публичные данные
@@ -36,12 +38,10 @@ const StreamPage = () => {
     const fetchStreamerInfo = async (userId) => {
       try {
         setStreamerLoading(true)
-        // Используем API для получения публичных данных пользователя
         const response = await streamAPI.getUserPublicInfo(userId)
         setStreamerInfo(response.data)
       } catch (err) {
         console.error('Error fetching streamer info:', err)
-        // Если ошибка, используем базовую информацию из стрима
         setStreamerInfo({
           username: stream?.author?.username,
           id: userId
@@ -55,7 +55,6 @@ const StreamPage = () => {
       try {
         setThemesLoading(true)
         const response = await streamAPI.getThemes()
-        console.log('🎨 Все тематики:', response.data)
         setThemes(response.data)
       } catch (err) {
         console.error('Error fetching themes:', err)
@@ -70,6 +69,25 @@ const StreamPage = () => {
     const interval = setInterval(fetchStream, 10000)
     return () => clearInterval(interval)
   }, [streamId])
+
+  // Проверяем, является ли пользователь автором стрима
+  const isStreamOwner = user && stream?.author?.id === user.id
+
+  // Функция для удаления стрима
+  const handleDeleteStream = async () => {
+    if (!window.confirm('Вы уверены, что хотите удалить этот стрим? Это действие нельзя отменить.')) {
+      return
+    }
+
+    try {
+      await streamAPI.deleteStream(streamId)
+      alert('✅ Стрим успешно удален!')
+      navigate('/profile')
+    } catch (err) {
+      console.error('Error deleting stream:', err)
+      alert('❌ Ошибка при удалении стрима')
+    }
+  }
 
   // Функция для получения русского названия тематики
   const getThemeDisplayName = (themeName) => {
@@ -95,12 +113,10 @@ const StreamPage = () => {
   const getStreamThemes = () => {
     if (!stream.themes || !Array.isArray(stream.themes)) return []
     
-    // Если тематики приходят как объекты с name
     if (stream.themes.length > 0 && typeof stream.themes[0] === 'object') {
       return stream.themes
     }
     
-    // Если тематики приходят как ID, находим их в общем списке
     return stream.themes.map(themeId => {
       return themes.find(theme => theme.id === themeId) || { id: themeId, name: 'unknown' }
     }).filter(theme => theme.name !== 'unknown')
@@ -183,8 +199,106 @@ const StreamPage = () => {
         <StreamPlayer stream={stream} />
         
         {/* ИНФОРМАЦИЯ О СТРИМЕ */}
-        <div style={{ padding: '20px', color: 'white' }}>
-          <h1 style={{ margin: '0 0 10px 0', fontSize: '24px' }}>{stream.title}</h1>
+        <div style={{ padding: '20px', color: 'white', position: 'relative' }}>
+          
+          {/* КНОПКА НАСТРОЕК ДЛЯ ВЛАДЕЛЬЦА СТРИМА */}
+          {isStreamOwner && (
+            <div style={{ position: 'absolute', top: '20px', right: '20px' }}>
+              <button
+                onClick={() => setShowSettingsMenu(!showSettingsMenu)}
+                style={{
+                  background: '#333',
+                  color: 'white',
+                  border: '1px solid #444',
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                ⚙️ Управление
+              </button>
+              
+              {/* ВЫПАДАЮЩЕЕ МЕНЮ НАСТРОЕК */}
+              {showSettingsMenu && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  background: '#18181b',
+                  border: '1px solid #333',
+                  borderRadius: '8px',
+                  padding: '8px 0',
+                  minWidth: '180px',
+                  zIndex: 1000,
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)'
+                }}>
+                  <button
+                    onClick={() => {
+                      setShowSettingsMenu(false)
+                      navigate(`/stream/${streamId}/settings`)
+                    }}
+                    style={{
+                      width: '100%',
+                      background: 'transparent',
+                      color: 'white',
+                      border: 'none',
+                      padding: '10px 16px',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = '#252525'}
+                    onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                  >
+                    📝 Настройки стрима
+                  </button>
+                  
+                  <div style={{
+                    height: '1px',
+                    background: '#333',
+                    margin: '4px 0'
+                  }} />
+                  
+                  <button
+                    onClick={() => {
+                      setShowSettingsMenu(false)
+                      handleDeleteStream()
+                    }}
+                    style={{
+                      width: '100%',
+                      background: 'transparent',
+                      color: '#ff4757',
+                      border: 'none',
+                      padding: '10px 16px',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = '#2a1a1a'}
+                    onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                  >
+                    🗑️ Удалить стрим
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          <h1 style={{ margin: '0 0 10px 0', fontSize: '24px', paddingRight: isStreamOwner ? '120px' : '0' }}>
+            {stream.title}
+          </h1>
           <p style={{ color: '#adadb8', marginBottom: '15px' }}>
             {stream.description || 'Описание отсутствует'}
           </p>

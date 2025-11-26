@@ -15,6 +15,19 @@ const Profile = () => {
     const [streamsLoading, setStreamsLoading] = useState(true)
     const [backendThemes, setBackendThemes] = useState([])
     const [themesLoading, setThemesLoading] = useState(true)
+    
+    // Новые состояния для формы бэк круто
+    const [formData, setFormData] = useState({
+        first_name: user?.first_name || '',
+        last_name: user?.last_name || '',
+        bio: user?.bio || '',
+        phone: user?.phone || '',
+        date_of_birth: user?.date_of_birth || '',
+        country: user?.country || '',
+        city: user?.city || '',
+        website: user?.website || ''
+    })
+    const [saveLoading, setSaveLoading] = useState(false)
 
     const achievements = [
         {
@@ -46,6 +59,53 @@ const Profile = () => {
         }
     ]
 
+    // Функция для исправления URL аватара
+    const fixAvatarUrl = (avatarUrl) => {
+        if (!avatarUrl) return null;
+        
+        // Если это уже полный URL с http, возвращаем как есть
+        if (avatarUrl.startsWith('http')) {
+            return avatarUrl;
+        }
+        
+        // Если это внутренний Docker URL (storage:9000), заменяем на правильный
+        if (avatarUrl.includes('storage:9000')) {
+            // Заменяем на localhost или внешний URL
+            return avatarUrl.replace('storage:9000', 'localhost:9000');
+        }
+        
+        // Если это просто file_key, используем API для получения URL
+        if (!avatarUrl.includes('://')) {
+            return `http://localhost:8000/api/files/?file_key=${avatarUrl}`;
+        }
+        
+        return avatarUrl;
+    }
+
+    // Функция для получения URL аватара через API
+    const getAvatarUrl = async (fileKey) => {
+        if (!fileKey) return null;
+        
+        try {
+            // Сначала пытаемся получить URL через API
+            const response = await api.post('/files/', null, {
+                params: { file_key: fileKey }
+            });
+            
+            let avatarUrl = response.data;
+            
+            // Исправляем URL если он внутренний
+            avatarUrl = fixAvatarUrl(avatarUrl);
+            
+            return avatarUrl;
+        } catch (error) {
+            console.error('Error getting avatar URL from API:', error);
+            
+            // Fallback: создаем URL напрямую
+            return fixAvatarUrl(fileKey);
+        }
+    }
+
     // Загружаем данные при монтировании
     useEffect(() => {
         if (!user) return;
@@ -54,11 +114,19 @@ const Profile = () => {
         const loadAvatar = async () => {
             if (user.avatar_url) {
                 try {
-                    const avatarUrl = `http://localhost:8000/api/files/?file_key=${user.avatar_url}`;
+                    console.log('🔄 Загрузка аватара:', user.avatar_url);
+                    const avatarUrl = await getAvatarUrl(user.avatar_url);
+                    console.log('✅ Получен URL аватара:', avatarUrl);
                     setAvatarPreview(avatarUrl);
                 } catch (error) {
-                    console.error('Error loading avatar:', error);
+                    console.error('❌ Ошибка загрузки аватара:', error);
+                    // Fallback на прямой URL
+                    const fallbackUrl = fixAvatarUrl(user.avatar_url);
+                    console.log('🔄 Использую fallback URL:', fallbackUrl);
+                    setAvatarPreview(fallbackUrl);
                 }
+            } else {
+                console.log('ℹ️ Аватар не установлен');
             }
         };
 
@@ -90,7 +158,36 @@ const Profile = () => {
         fetchUserStreams();
         fetchThemes();
         setUsername(user.username || '');
+        
+        // Заполняем форму данными пользователя
+        setFormData({
+            first_name: user?.first_name || '',
+            last_name: user?.last_name || '',
+            bio: user?.bio || '',
+            phone: user?.phone || '',
+            date_of_birth: user?.date_of_birth || '',
+            country: user?.country || '',
+            city: user?.city || '',
+            website: user?.website || ''
+        });
     }, [user])
+
+    // Обновляем аватар когда обновляются данные пользователя
+    useEffect(() => {
+        if (user?.avatar_url) {
+            const loadNewAvatar = async () => {
+                try {
+                    const avatarUrl = await getAvatarUrl(user.avatar_url);
+                    setAvatarPreview(avatarUrl);
+                } catch (error) {
+                    console.error('Error loading new avatar:', error);
+                    const fallbackUrl = fixAvatarUrl(user.avatar_url);
+                    setAvatarPreview(fallbackUrl);
+                }
+            };
+            loadNewAvatar();
+        }
+    }, [user?.avatar_url]);
 
     const calculateProgress = (progress, total) => {
         return total > 0 ? Math.min((progress / total) * 100, 100) : 0
@@ -109,13 +206,12 @@ const Profile = () => {
 
         setIsUploading(true)
         try {
-            const formData = new FormData()
-            formData.append('avatar', avatarFile)
+            const uploadData = new FormData()
+            uploadData.append('avatar', avatarFile)
 
             console.log('🔄 Загрузка аватара...')
-            console.log('🔑 Токен:', localStorage.getItem('access_token'))
 
-            const response = await api.post('/users/me', formData, {
+            const response = await api.post('/users/me', uploadData, {
                 headers: {
                     'Content-Type': 'multipart/form-data'
                 }
@@ -123,9 +219,25 @@ const Profile = () => {
 
             console.log("✅ Ответ от сервера:", response.data)
 
+            // Обновляем пользователя
             updateUser(response.data)
+            
+            // Сразу показываем превью загруженного файла
             setAvatarPreview(URL.createObjectURL(avatarFile))
             setAvatarFile(null)
+            
+            // Обновляем аватар с сервера
+            if (response.data.avatar_url) {
+                try {
+                    const newAvatarUrl = await getAvatarUrl(response.data.avatar_url);
+                    setAvatarPreview(newAvatarUrl);
+                } catch (error) {
+                    console.error('Error loading new avatar URL:', error);
+                    const fallbackUrl = fixAvatarUrl(response.data.avatar_url);
+                    setAvatarPreview(fallbackUrl);
+                }
+            }
+            
             alert("Аватар успешно обновлён!")
 
         } catch (error) {
@@ -156,22 +268,65 @@ const Profile = () => {
         }
     }
 
+    // Обработчик изменения полей формы
+    const handleInputChange = (e) => {
+        const { name, value } = e.target
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }))
+    }
+
+    // Сохранение настроек профиля
     const handleSaveSettings = async () => {
         try {
-            // Здесь будет логика сохранения настроек
-            const response = await api.post('/users/me', {
-                first_name: user?.first_name,
-                last_name: user?.last_name,
-                bio: user?.bio,
-                // Добавь другие поля когда будут готовы на бэкенде
+            setSaveLoading(true)
+            
+            // Создаем FormData для отправки
+            const submitData = new FormData()
+            
+            // Добавляем текстовые поля
+            Object.keys(formData).forEach(key => {
+                if (formData[key]) {
+                    submitData.append(key, formData[key])
+                }
             })
             
+            // Добавляем аватар если есть
+            if (avatarFile) {
+                submitData.append('avatar', avatarFile)
+            }
+
+            console.log('💾 Сохранение настроек профиля...')
+            const response = await api.post('/users/me', submitData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            })
+
+            console.log("✅ Настройки сохранены:", response.data)
             updateUser(response.data)
-            alert('Настройки сохранены!')
+            
+            // Обновляем аватар если он был загружен
+            if (response.data.avatar_url && avatarFile) {
+                try {
+                    const newAvatarUrl = await getAvatarUrl(response.data.avatar_url);
+                    setAvatarPreview(newAvatarUrl);
+                } catch (error) {
+                    console.error('Error loading new avatar URL:', error);
+                    const fallbackUrl = fixAvatarUrl(response.data.avatar_url);
+                    setAvatarPreview(fallbackUrl);
+                }
+            }
+            
+            alert('Настройки успешно сохранены!')
             setShowSettings(false)
+            
         } catch (error) {
-            console.error('Ошибка сохранения настроек:', error)
+            console.error('❌ Ошибка сохранения настроек:', error)
             alert('Ошибка при сохранении настроек')
+        } finally {
+            setSaveLoading(false)
         }
     }
 
@@ -256,9 +411,26 @@ const Profile = () => {
                             src={avatarPreview}
                             alt="Avatar"
                             style={{width: '100%', height: '100%', objectFit: 'cover'}}
+                            onError={(e) => {
+                                console.error('❌ Ошибка загрузки изображения аватара:', avatarPreview);
+                                e.target.style.display = 'none';
+                            }}
                         />
-                    ) : (
-                        user?.username?.charAt(0).toUpperCase() || 'U'
+                    ) : null}
+                    {(!avatarPreview) && (
+                        <div style={{
+                            width: '100%',
+                            height: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: 'linear-gradient(45deg, #9147ff, #772ce8)',
+                            color: 'white',
+                            fontSize: '32px',
+                            fontWeight: 'bold'
+                        }}>
+                            {user?.username?.charAt(0).toUpperCase() || 'U'}
+                        </div>
                     )}
                     <input
                         id="avatar-input-main"
@@ -301,12 +473,28 @@ const Profile = () => {
                             "{user.bio}"
                         </p>
                     )}
-                    <p style={{margin: '10px 0 0 0', color: '#9147ff'}}>
-                        📍 Участник StreamFlow
-                    </p>
+                    {(user?.country || user?.city) && (
+                        <p style={{margin: '5px 0 0 0', color: '#9147ff', fontSize: '14px'}}>
+                            📍 {[user?.city, user?.country].filter(Boolean).join(', ')}
+                        </p>
+                    )}
                 </div>
 
                 <div style={{display: 'flex', gap: '10px'}}>
+                    <button
+                        onClick={() => setShowSettings(true)}
+                        style={{
+                            background: '#9147ff',
+                            color: 'white',
+                            border: 'none',
+                            padding: '10px 20px',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '14px'
+                        }}
+                    >
+                        ⚙️ Настройки
+                    </button>
                     <button
                         onClick={logout}
                         style={{
@@ -343,8 +531,8 @@ const Profile = () => {
                         borderRadius: '12px',
                         padding: '30px',
                         width: '90%',
-                        maxWidth: '500px',
-                        maxHeight: '80vh',
+                        maxWidth: '600px',
+                        maxHeight: '90vh',
                         overflowY: 'auto',
                         border: '1px solid #333'
                     }}>
@@ -400,9 +588,25 @@ const Profile = () => {
                                             src={avatarPreview}
                                             alt="Preview"
                                             style={{width: '100%', height: '100%', objectFit: 'cover'}}
+                                            onError={(e) => {
+                                                console.error('Error loading avatar preview');
+                                                e.target.style.display = 'none';
+                                            }}
                                         />
                                     ): (
-                                        username.charAt(0).toUpperCase()
+                                        <div style={{
+                                            width: '100%',
+                                            height: '100%',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            background: 'linear-gradient(45deg, #9147ff, #772ce8)',
+                                            color: 'white',
+                                            fontSize: '24px',
+                                            fontWeight: 'bold'
+                                        }}>
+                                            {username.charAt(0).toUpperCase()}
+                                        </div>
                                     )}
                                     <input
                                         id="avatar-input-modal"
@@ -457,34 +661,193 @@ const Profile = () => {
                             )}
                         </div>
 
-                        {/* ИМЯ ПОЛЬЗОВАТЕЛЯ */}
+                        {/* ОСНОВНАЯ ИНФОРМАЦИЯ */}
                         <div style={{marginBottom: '25px'}}>
-                            <h3 style={{marginBottom: '10px', color: '#efeff1'}}>👤 Имя пользователя</h3>
-                            <input
-                                type="text"
-                                value={username}
-                                onChange={handleUsernameChange}
-                                disabled={usernameChanged}
-                                style={{
-                                    width: '100%',
-                                    padding: '12px',
-                                    background: '#0e0e10',
-                                    border: `1px solid ${usernameChanged ? '#333' : '#444'}`,
-                                    borderRadius: '4px',
-                                    color: usernameChanged ? '#adadb8' : 'white',
-                                    fontSize: '14px'
-                                }}
-                                placeholder="Введите новое имя"
-                            />
-                            {usernameChanged ? (
-                                <p style={{margin: '8px 0 0 0', color: '#adadb8', fontSize: '12px'}}>
-                                    ❌ Имя пользователя можно изменить только один раз
-                                </p>
-                            ) : (
-                                <p style={{margin: '8px 0 0 0', color: '#adadb8', fontSize: '12px'}}>
-                                    ⚠️ Имя пользователя можно изменить только один раз
-                                </p>
-                            )}
+                            <h3 style={{marginBottom: '15px', color: '#efeff1'}}>👤 Основная информация</h3>
+                            
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px'}}>
+                                <div>
+                                    <label style={{display: 'block', marginBottom: '5px', color: '#adadb8', fontSize: '14px'}}>
+                                        Имя
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="first_name"
+                                        value={formData.first_name}
+                                        onChange={handleInputChange}
+                                        style={{
+                                            width: '100%',
+                                            padding: '10px',
+                                            background: '#0e0e10',
+                                            border: '1px solid #444',
+                                            borderRadius: '4px',
+                                            color: 'white',
+                                            fontSize: '14px'
+                                        }}
+                                        placeholder="Ваше имя"
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{display: 'block', marginBottom: '5px', color: '#adadb8', fontSize: '14px'}}>
+                                        Фамилия
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="last_name"
+                                        value={formData.last_name}
+                                        onChange={handleInputChange}
+                                        style={{
+                                            width: '100%',
+                                            padding: '10px',
+                                            background: '#0e0e10',
+                                            border: '1px solid #444',
+                                            borderRadius: '4px',
+                                            color: 'white',
+                                            fontSize: '14px'
+                                        }}
+                                        placeholder="Ваша фамилия"
+                                    />
+                                </div>
+                            </div>
+
+                            <div style={{marginBottom: '15px'}}>
+                                <label style={{display: 'block', marginBottom: '5px', color: '#adadb8', fontSize: '14px'}}>
+                                    О себе
+                                </label>
+                                <textarea
+                                    name="bio"
+                                    value={formData.bio}
+                                    onChange={handleInputChange}
+                                    rows="3"
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px',
+                                        background: '#0e0e10',
+                                        border: '1px solid #444',
+                                        borderRadius: '4px',
+                                        color: 'white',
+                                        fontSize: '14px',
+                                        resize: 'vertical'
+                                    }}
+                                    placeholder="Расскажите о себе..."
+                                />
+                            </div>
+                        </div>
+
+                        {/* КОНТАКТНАЯ ИНФОРМАЦИЯ */}
+                        <div style={{marginBottom: '25px'}}>
+                            <h3 style={{marginBottom: '15px', color: '#efeff1'}}>📞 Контактная информация</h3>
+                            
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px'}}>
+                                <div>
+                                    <label style={{display: 'block', marginBottom: '5px', color: '#adadb8', fontSize: '14px'}}>
+                                        Телефон
+                                    </label>
+                                    <input
+                                        type="tel"
+                                        name="phone"
+                                        value={formData.phone}
+                                        onChange={handleInputChange}
+                                        style={{
+                                            width: '100%',
+                                            padding: '10px',
+                                            background: '#0e0e10',
+                                            border: '1px solid #444',
+                                            borderRadius: '4px',
+                                            color: 'white',
+                                            fontSize: '14px'
+                                        }}
+                                        placeholder="+7 (XXX) XXX-XX-XX"
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{display: 'block', marginBottom: '5px', color: '#adadb8', fontSize: '14px'}}>
+                                        Дата рождения
+                                    </label>
+                                    <input
+                                        type="date"
+                                        name="date_of_birth"
+                                        value={formData.date_of_birth}
+                                        onChange={handleInputChange}
+                                        style={{
+                                            width: '100%',
+                                            padding: '10px',
+                                            background: '#0e0e10',
+                                            border: '1px solid #444',
+                                            borderRadius: '4px',
+                                            color: 'white',
+                                            fontSize: '14px'
+                                        }}
+                                    />
+                                </div>
+                            </div>
+
+                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px'}}>
+                                <div>
+                                    <label style={{display: 'block', marginBottom: '5px', color: '#adadb8', fontSize: '14px'}}>
+                                        Страна
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="country"
+                                        value={formData.country}
+                                        onChange={handleInputChange}
+                                        style={{
+                                            width: '100%',
+                                            padding: '10px',
+                                            background: '#0e0e10',
+                                            border: '1px solid #444',
+                                            borderRadius: '4px',
+                                            color: 'white',
+                                            fontSize: '14px'
+                                        }}
+                                        placeholder="Страна"
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{display: 'block', marginBottom: '5px', color: '#adadb8', fontSize: '14px'}}>
+                                        Город
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="city"
+                                        value={formData.city}
+                                        onChange={handleInputChange}
+                                        style={{
+                                            width: '100%',
+                                            padding: '10px',
+                                            background: '#0e0e10',
+                                            border: '1px solid #444',
+                                            borderRadius: '4px',
+                                            color: 'white',
+                                            fontSize: '14px'
+                                        }}
+                                        placeholder="Город"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label style={{display: 'block', marginBottom: '5px', color: '#adadb8', fontSize: '14px'}}>
+                                    Веб-сайт
+                                </label>
+                                <input
+                                    type="url"
+                                    name="website"
+                                    value={formData.website}
+                                    onChange={handleInputChange}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px',
+                                        background: '#0e0e10',
+                                        border: '1px solid #444',
+                                        borderRadius: '4px',
+                                        color: 'white',
+                                        fontSize: '14px'
+                                    }}
+                                    placeholder="https://example.com"
+                                />
+                            </div>
                         </div>
 
                         {/* ТЕМАТИКИ С БЭКЕНДА */}
@@ -536,7 +899,7 @@ const Profile = () => {
                                     background: 'transparent',
                                     color: '#efeff1',
                                     border: '1px solid #333',
-                                    padding: '10px 20px',
+                                    padding: '12px 24px',
                                     borderRadius: '4px',
                                     cursor: 'pointer',
                                     fontSize: '14px'
@@ -546,17 +909,19 @@ const Profile = () => {
                             </button>
                             <button
                                 onClick={handleSaveSettings}
+                                disabled={saveLoading}
                                 style={{
-                                    background: '#9147ff',
+                                    background: saveLoading ? '#666' : '#9147ff',
                                     color: 'white',
                                     border: 'none',
-                                    padding: '10px 20px',
+                                    padding: '12px 24px',
                                     borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    fontSize: '14px'
+                                    cursor: saveLoading ? 'not-allowed' : 'pointer',
+                                    fontSize: '14px',
+                                    fontWeight: 'bold'
                                 }}
                             >
-                                💾 Сохранить
+                                {saveLoading ? '💾 Сохранение...' : '💾 Сохранить изменения'}
                             </button>
                         </div>
                     </div>
@@ -825,7 +1190,7 @@ const Profile = () => {
                                     textAlign: 'left'
                                 }}
                             >
-                                ⚙️ Настройки
+                                ⚙️ Настройки профиля
                             </button>
                             <button style={{
                                 background: '#333',
@@ -859,6 +1224,8 @@ const Profile = () => {
                             {selectedThemes.length > 0 && (
                                 <p>🎯 <strong>Интересы:</strong> {selectedThemes.length} тем</p>
                             )}
+                            {user?.phone && <p>📱 <strong>Телефон:</strong> {user.phone}</p>}
+                            {user?.website && <p>🌐 <strong>Сайт:</strong> {user.website}</p>}
                         </div>
                     </div>
 

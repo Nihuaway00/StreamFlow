@@ -54,6 +54,8 @@ export const streamAPI = {
   getStream: (streamId) => api.get(`/streams/${streamId}`),
   getUserPublicInfo: (userId) => api.get(`/users/${userId}`),
   getThemes: () => api.get('/themes/'),
+  deleteStream: (streamId) => api.delete(`/streams/${streamId}`),
+  updateStream: (streamId, streamData) => api.patch(`/streams/${streamId}`, streamData),
 };
 
 // Функция для проверки авторизации
@@ -72,6 +74,11 @@ export const usersAPI = {
   getCurrentUser: () => api.get('/users/me'),
   getUser: (userId) => api.get(`/users/${userId}`),
   updateUser: (userData) => api.post('/users/me', userData),
+};
+
+// я дошёл до аваатарок))) чувакииии)
+export const filesAPI = {
+  getFileUrl: (fileKey) => api.get(`/files/?file_key=${fileKey}`),
 };
 
 export default api;
