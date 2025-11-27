@@ -16,7 +16,6 @@ const Profile = () => {
     const [backendThemes, setBackendThemes] = useState([])
     const [themesLoading, setThemesLoading] = useState(true)
     
-    // Новые состояния для формы бэк круто
     const [formData, setFormData] = useState({
         first_name: user?.first_name || '',
         last_name: user?.last_name || '',
@@ -59,50 +58,58 @@ const Profile = () => {
         }
     ]
 
-    // Функция для исправления URL аватара
-    const fixAvatarUrl = (avatarUrl) => {
-        if (!avatarUrl) return null;
-        
-        // Если это уже полный URL с http, возвращаем как есть
-        if (avatarUrl.startsWith('http')) {
-            return avatarUrl;
-        }
-        
-        // Если это внутренний Docker URL (storage:9000), заменяем на правильный
-        if (avatarUrl.includes('storage:9000')) {
-            // Заменяем на localhost или внешний URL
-            return avatarUrl.replace('storage:9000', 'localhost:9000');
-        }
-        
-        // Если это просто file_key, используем API для получения URL
-        if (!avatarUrl.includes('://')) {
-            return `http://localhost:8000/api/files/?file_key=${avatarUrl}`;
-        }
-        
-        return avatarUrl;
-    }
-
-    // Функция для получения URL аватара через API
+    // Функция для получения правильного URL аватара
     const getAvatarUrl = async (fileKey) => {
         if (!fileKey) return null;
         
+        console.log('🔍 Получение URL для file_key:', fileKey);
+        
         try {
-            // Сначала пытаемся получить URL через API
+            // Получаем signed URL от бэкенда
             const response = await api.post('/files/', null, {
                 params: { file_key: fileKey }
             });
             
-            let avatarUrl = response.data;
+            const signedUrl = response.data;
+            console.log('✅ Signed URL от бэкенда:', signedUrl);
             
-            // Исправляем URL если он внутренний
-            avatarUrl = fixAvatarUrl(avatarUrl);
+            // ЗАМЕНЯЕМ storage:9000 на localhost:9000
+            if (signedUrl.includes('storage:9000')) {
+                const fixedUrl = signedUrl.replace('storage:9000', 'localhost:9000');
+                console.log('🔧 Исправленный URL:', fixedUrl);
+                return fixedUrl;
+            }
             
-            return avatarUrl;
+            return signedUrl;
+            
         } catch (error) {
-            console.error('Error getting avatar URL from API:', error);
-            
-            // Fallback: создаем URL напрямую
-            return fixAvatarUrl(fileKey);
+            console.error('❌ Ошибка получения URL:', error);
+            return null;
+        }
+    }
+
+    // Функция для извлечения file_key из avatar_url
+    const extractFileKey = (avatarUrl) => {
+        if (!avatarUrl) return null;
+        
+        console.log('🔍 Извлечение file_key из:', avatarUrl);
+        
+        // Если это уже file_key (простая строка)
+        if (!avatarUrl.includes('://') && !avatarUrl.includes('/')) {
+            return avatarUrl;
+        }
+        
+        // Если это URL, извлекаем путь
+        try {
+            const url = new URL(avatarUrl);
+            // Убираем первый слеш
+            let path = url.pathname.substring(1);
+            console.log('📁 Извлеченный file_key:', path);
+            return path;
+        } catch (error) {
+            console.error('❌ Ошибка парсинга URL:', error);
+            // Если не URL, возвращаем как есть
+            return avatarUrl;
         }
     }
 
@@ -115,18 +122,32 @@ const Profile = () => {
             if (user.avatar_url) {
                 try {
                     console.log('🔄 Загрузка аватара:', user.avatar_url);
-                    const avatarUrl = await getAvatarUrl(user.avatar_url);
-                    console.log('✅ Получен URL аватара:', avatarUrl);
-                    setAvatarPreview(avatarUrl);
+                    
+                    // Извлекаем file_key из avatar_url
+                    const fileKey = extractFileKey(user.avatar_url);
+                    console.log('📁 File key:', fileKey);
+                    
+                    if (fileKey) {
+                        // Получаем правильный URL через бэкенд
+                        const avatarUrl = await getAvatarUrl(fileKey);
+                        if (avatarUrl) {
+                            console.log('✅ Устанавливаем аватар:', avatarUrl);
+                            setAvatarPreview(avatarUrl);
+                        } else {
+                            console.log('❌ Не удалось получить URL аватара');
+                            setAvatarPreview(null);
+                        }
+                    } else {
+                        console.log('❌ Не удалось извлечь file_key');
+                        setAvatarPreview(null);
+                    }
                 } catch (error) {
                     console.error('❌ Ошибка загрузки аватара:', error);
-                    // Fallback на прямой URL
-                    const fallbackUrl = fixAvatarUrl(user.avatar_url);
-                    console.log('🔄 Использую fallback URL:', fallbackUrl);
-                    setAvatarPreview(fallbackUrl);
+                    setAvatarPreview(null);
                 }
             } else {
                 console.log('ℹ️ Аватар не установлен');
+                setAvatarPreview(null);
             }
         };
 
@@ -159,7 +180,6 @@ const Profile = () => {
         fetchThemes();
         setUsername(user.username || '');
         
-        // Заполняем форму данными пользователя
         setFormData({
             first_name: user?.first_name || '',
             last_name: user?.last_name || '',
@@ -177,15 +197,18 @@ const Profile = () => {
         if (user?.avatar_url) {
             const loadNewAvatar = async () => {
                 try {
-                    const avatarUrl = await getAvatarUrl(user.avatar_url);
-                    setAvatarPreview(avatarUrl);
+                    const fileKey = extractFileKey(user.avatar_url);
+                    if (fileKey) {
+                        const avatarUrl = await getAvatarUrl(fileKey);
+                        setAvatarPreview(avatarUrl);
+                    }
                 } catch (error) {
                     console.error('Error loading new avatar:', error);
-                    const fallbackUrl = fixAvatarUrl(user.avatar_url);
-                    setAvatarPreview(fallbackUrl);
                 }
             };
             loadNewAvatar();
+        } else {
+            setAvatarPreview(null);
         }
     }, [user?.avatar_url]);
 
@@ -229,12 +252,13 @@ const Profile = () => {
             // Обновляем аватар с сервера
             if (response.data.avatar_url) {
                 try {
-                    const newAvatarUrl = await getAvatarUrl(response.data.avatar_url);
-                    setAvatarPreview(newAvatarUrl);
+                    const fileKey = extractFileKey(response.data.avatar_url);
+                    if (fileKey) {
+                        const newAvatarUrl = await getAvatarUrl(fileKey);
+                        setAvatarPreview(newAvatarUrl);
+                    }
                 } catch (error) {
                     console.error('Error loading new avatar URL:', error);
-                    const fallbackUrl = fixAvatarUrl(response.data.avatar_url);
-                    setAvatarPreview(fallbackUrl);
                 }
             }
             
@@ -251,13 +275,11 @@ const Profile = () => {
     const handleFileSelect = (event) => {
         const file = event.target.files[0]
         if (file) {
-            // Проверяем размер файла (максимум 5MB)
             if (file.size > 5 * 1024 * 1024) {
                 alert('Файл слишком большой. Максимальный размер: 5MB')
                 return
             }
 
-            // Проверяем тип файла
             if (!file.type.startsWith('image/')) {
                 alert('Пожалуйста, выберите изображение')
                 return
@@ -268,7 +290,6 @@ const Profile = () => {
         }
     }
 
-    // Обработчик изменения полей формы
     const handleInputChange = (e) => {
         const { name, value } = e.target
         setFormData(prev => ({
@@ -277,22 +298,18 @@ const Profile = () => {
         }))
     }
 
-    // Сохранение настроек профиля
     const handleSaveSettings = async () => {
         try {
             setSaveLoading(true)
             
-            // Создаем FormData для отправки
             const submitData = new FormData()
             
-            // Добавляем текстовые поля
             Object.keys(formData).forEach(key => {
                 if (formData[key]) {
                     submitData.append(key, formData[key])
                 }
             })
             
-            // Добавляем аватар если есть
             if (avatarFile) {
                 submitData.append('avatar', avatarFile)
             }
@@ -307,15 +324,15 @@ const Profile = () => {
             console.log("✅ Настройки сохранены:", response.data)
             updateUser(response.data)
             
-            // Обновляем аватар если он был загружен
             if (response.data.avatar_url && avatarFile) {
                 try {
-                    const newAvatarUrl = await getAvatarUrl(response.data.avatar_url);
-                    setAvatarPreview(newAvatarUrl);
+                    const fileKey = extractFileKey(response.data.avatar_url);
+                    if (fileKey) {
+                        const newAvatarUrl = await getAvatarUrl(fileKey);
+                        setAvatarPreview(newAvatarUrl);
+                    }
                 } catch (error) {
                     console.error('Error loading new avatar URL:', error);
-                    const fallbackUrl = fixAvatarUrl(response.data.avatar_url);
-                    setAvatarPreview(fallbackUrl);
                 }
             }
             
@@ -336,7 +353,6 @@ const Profile = () => {
         }
     }
 
-    // Функция для получения русского названия тематики
     const getThemeDisplayName = (themeName) => {
         const themeNames = {
             'gaming': '🎮 Игры',
@@ -375,6 +391,42 @@ const Profile = () => {
         return gradients[index % gradients.length]
     }
 
+    // Обработчик ошибок загрузки изображения
+    const handleImageError = (e) => {
+        console.error('❌ Ошибка загрузки изображения аватара');
+        e.target.style.display = 'none';
+    }
+
+    // Функция для рендеринга аватара
+    const renderAvatar = () => {
+        if (avatarPreview) {
+            return (
+                <img
+                    src={avatarPreview}
+                    alt="Avatar"
+                    style={{width: '100%', height: '100%', objectFit: 'cover'}}
+                    onError={handleImageError}
+                />
+            );
+        } else {
+            return (
+                <div style={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'linear-gradient(45deg, #9147ff, #772ce8)',
+                    color: 'white',
+                    fontSize: '32px',
+                    fontWeight: 'bold'
+                }}>
+                    {user?.username?.charAt(0).toUpperCase() || 'U'}
+                </div>
+            );
+        }
+    }
+
     return (
         <div style={{padding: '20px', maxWidth: '1000px', margin: '0 auto'}}>
 
@@ -392,7 +444,6 @@ const Profile = () => {
                 <div style={{
                     width: '80px',
                     height: '80px',
-                    background: avatarPreview ? 'transparent' : 'linear-gradient(45deg, #9147ff, #772ce8)',
                     borderRadius: '50%',
                     display: 'flex',
                     alignItems: 'center',
@@ -406,32 +457,7 @@ const Profile = () => {
                 }}
                      onClick={() => document.getElementById('avatar-input-main').click()}
                      title="Нажмите чтобы сменить аватар">
-                    {avatarPreview ? (
-                        <img
-                            src={avatarPreview}
-                            alt="Avatar"
-                            style={{width: '100%', height: '100%', objectFit: 'cover'}}
-                            onError={(e) => {
-                                console.error('❌ Ошибка загрузки изображения аватара:', avatarPreview);
-                                e.target.style.display = 'none';
-                            }}
-                        />
-                    ) : null}
-                    {(!avatarPreview) && (
-                        <div style={{
-                            width: '100%',
-                            height: '100%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            background: 'linear-gradient(45deg, #9147ff, #772ce8)',
-                            color: 'white',
-                            fontSize: '32px',
-                            fontWeight: 'bold'
-                        }}>
-                            {user?.username?.charAt(0).toUpperCase() || 'U'}
-                        </div>
-                    )}
+                    {renderAvatar()}
                     <input
                         id="avatar-input-main"
                         type="file"

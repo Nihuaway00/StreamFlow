@@ -78,7 +78,9 @@ export const usersAPI = {
 
 // я дошёл до аваатарок))) чувакииии)
 export const filesAPI = {
-  getFileUrl: (fileKey) => api.get(`/files/?file_key=${fileKey}`),
+  getFileUrl: (fileKey) => api.post('/files/', null, { 
+    params: { file_key: fileKey } 
+  }), // POST запрос??
 };
 
 export default api;
