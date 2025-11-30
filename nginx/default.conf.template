@@ -1,0 +1,44 @@
+# error_log /var/log/nginx/error.log debug;
+# access_log /var/log/nginx/access.log;
+
+server {
+    listen 9000;
+
+    server_name ${STORAGE_HOST};
+
+    location / {
+			proxy_pass http://${STORAGE_HOST}:${STORAGE_PORT};
+    }
+}
+
+
+server {
+    listen 80;
+    resolver 127.0.0.11 valid=5s ipv6=off;
+    ignore_invalid_headers off;
+    # Allow any size file to be uploaded.
+    # Set to a value such as 1000m; to restrict file size to a specific value
+    client_max_body_size 0;
+    # Disable buffering
+    proxy_buffering off;
+    proxy_request_buffering off;
+    add_header Access-Control-Allow-Origin * always;
+    add_header Access-Control-Allow-Methods * always;
+    add_header Access-Control-Allow-Headers 'Range,DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type' always;
+
+
+    location / {
+				proxy_pass http://${FRONTEND_HOST}:${FRONTEND_PORT};
+				proxy_set_header Host $host;
+				proxy_set_header X-Real-IP $remote_addr;
+				proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		}
+
+   	location ~ ^/(docs|openapi.json|redoc|api) {
+        proxy_pass http://${BACKEND_HOST}:${BACKEND_PORT};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+}
