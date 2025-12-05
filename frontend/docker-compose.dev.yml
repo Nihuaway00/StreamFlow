@@ -45,7 +45,9 @@ services:
   media-server:
     container_name: media_server
     build: ../media_server
-    command: nginx -c /etc/nginx/nginx.dev.conf -g 'daemon off;'
+    environment:
+      - BACKEND_HOST=backend
+      - BACKEND_PORT=8000
     ports:
       - "1935:1935"
       - "8080:8080"

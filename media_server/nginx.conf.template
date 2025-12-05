@@ -13,7 +13,7 @@ rtmp {
         application live {
             live on;
             record off;
-            
+
 
             hls on;
             hls_path /tmp/hls;
@@ -22,8 +22,8 @@ rtmp {
             hls_playlist_length 20s;
 
             # Для dev используем host.docker.internal
-            on_publish http://host.docker.internal:8000/api/webhooks/stream/publish;
-            on_publish_done http://host.docker.internal:8000/api/webhooks/stream/unpublish;
+            on_publish http://${BACKEND_HOST}:${BACKEND_PORT}/api/webhooks/stream/publish;
+            on_publish_done http://${BACKEND_HOST}:${BACKEND_PORT}/api/webhooks/stream/unpublish;
         }
     }
 }
