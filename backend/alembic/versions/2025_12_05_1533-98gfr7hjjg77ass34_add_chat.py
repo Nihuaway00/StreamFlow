@@ -32,8 +32,8 @@ def upgrade():
     op.create_index('idx_chats_stream_id', 'chats', ['stream_id'])
     
     # Создаем ENUM
-    message_status = postgresql.ENUM('CREATED', 'IN_QUEUE', 'DELIVERED', 'FAILED', name='messagestatus')
-    message_status.create(op.get_bind())
+    message_status = postgresql.ENUM('CREATED', 'IN_QUEUE', 'DELIVERED', 'FAILED', name='messagestatus', create_type=False)
+    message_status.create(op.get_bind(), checkfirst=True)
     
     op.create_table('messages',
         sa.Column('id', postgresql.UUID(), nullable=False),
