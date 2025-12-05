@@ -35,6 +35,7 @@ class User(Base):
     # Relationships
     streams = relationship("Stream", back_populates="author")
     user_themes = relationship("UserThemes", back_populates="user", cascade="all, delete-orphan")
+    messages = relationship("Message", back_populates="user")
 
     @property
     def themes(self):

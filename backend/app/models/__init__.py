@@ -5,5 +5,6 @@ from app.models.themes import Theme
 from app.models.user import User
 from app.models.user_role import UserRole
 from app.models.user_themes import UserThemes
+from .chat import Chat, Message, MessageStatus
 
-__all__ = ["User", "Stream", "Role", "UserRole", "Theme", "UserThemes", "StreamTheme"]
+__all__ = ["User", "Stream", "Role", "UserRole", "Theme", "UserThemes", "StreamTheme", "Chat", "Message", "MessageStatus"]

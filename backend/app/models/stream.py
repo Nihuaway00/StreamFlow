@@ -39,6 +39,7 @@ class Stream(Base):
     # Relationship
     author = relationship("User", back_populates="streams")
     stream_themes = relationship("StreamTheme", back_populates="stream", cascade="all, delete-orphan")
+    chat = relationship("Chat", back_populates="stream", uselist=False, cascade="all, delete-orphan")
 
     @property
     def themes(self):
