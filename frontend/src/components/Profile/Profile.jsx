@@ -1192,6 +1192,7 @@ const Profile = () => {
                         border: '1px solid #333'
                     }}>
                         <h3 style={{marginBottom: '15px'}}>⚡ Быстрые действия</h3>
+                        
                         <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
                             <button style={{
                                 background: '#9147ff',
@@ -1201,7 +1202,9 @@ const Profile = () => {
                                 borderRadius: '4px',
                                 cursor: 'pointer',
                                 textAlign: 'left'
-                            }}>
+                            }}
+                            onClick={() => window.location.href = '/stream'}
+                            >
                                 🎥 Начать стрим
                             </button>
                             <button

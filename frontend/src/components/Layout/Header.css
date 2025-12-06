@@ -1,0 +1,233 @@
+.header {
+  height: 80px;
+  background-size: cover;
+  background-position: center;
+  border-bottom: 1px solid rgba(255, 255, 255, .2);
+
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+
+  display: flex;
+  align-items: center;
+}
+
+.header__content {
+  width: 100%;
+  max-width: 1500px;
+  margin: auto;
+  padding: 0 25px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Лого как кнопка */
+.header__logo-area {
+  width: 160px;
+  height: 50px;
+  cursor: pointer;
+}
+
+/* Прозрачная кликабельная зона поверх логотипа */
+.header__logo-clickzone {
+  position: absolute;
+  left: 0;
+  top: 0;
+
+  /* размеры под PNG логотипа */
+  width: 140px;
+  height: 80px;
+
+  cursor: pointer;
+  z-index: 2000; /* над хедером */
+}
+
+/* === ПОИСК === */
+.header__search {
+  position: relative;
+  width: 420px;
+}
+
+.header__search input {
+  width: 100%;
+  padding: 12px 20px;
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, .3);
+  outline: none;
+
+  background: rgba(255,255,255,0.06);
+  backdrop-filter: blur(8px);
+
+  color: #fff;
+  font-size: 15px;
+
+  transition: .3s;
+}
+
+.header__search input:focus {
+  background: rgba(255,255,255,0.10);
+}
+
+.search-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.35);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+  transition: .2s;
+}
+
+.search-btn:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+/* === ПРАВАЯ ЧАСТЬ === */
+.header__right {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+
+  /* Убираем рамку/контейнер */
+  padding: 0;
+  border: none;
+  background: none;
+  backdrop-filter: none;
+}
+
+/* === КНОПКИ === */
+.header-btn {
+  padding: 10px 26px;
+  border-radius: 22px;
+
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+
+  color: #fff;
+  text-decoration: none;
+  cursor: pointer;
+
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.07);
+
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
+  transition: 0.25s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35), inset 0 0 10px rgba(255,255,255,0.05);
+}
+
+.header-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.5),
+              inset 0 0 12px rgba(255,255,255,0.12);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Чёрная */
+.black-btn {
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(255,255,255,0.32);
+
+  box-shadow: 
+      0 2px 10px rgba(0,0,0,0.45),
+      inset 0 0 14px rgba(255,255,255,0.07);
+}
+
+.black-btn:hover {
+  background: rgba(0,0,0,0.88);
+  box-shadow: 
+      0 3px 14px rgba(0,0,0,0.6),
+      inset 0 0 16px rgba(255,255,255,0.12);
+}
+
+.black-btn:hover {
+  background: #111;
+}
+
+/* Пурпурная */
+.purple-btn {
+  background: linear-gradient(135deg, #a564ff 0%, #7c33ff 100%);
+  border: 1px solid rgba(255,255,255,0.2);
+
+  box-shadow:
+      0 2px 12px rgba(110, 20, 255, 0.5),
+      inset 0 0 14px rgba(255,255,255,0.08);
+}
+
+.purple-btn:hover {
+  background: linear-gradient(135deg, #b67aff 0%, #8a3fff 100%);
+  box-shadow:
+      0 4px 18px rgba(120, 40, 255, 0.65),
+      inset 0 0 16px rgba(255,255,255,0.12);
+}
+
+/* Выйти */
+.exit-btn {
+  background: rgba(20,20,20,0.65);
+  border: 1px solid rgba(255,255,255,0.28);
+
+  box-shadow:
+      0 2px 8px rgba(0,0,0,0.4),
+      inset 0 0 10px rgba(255,255,255,0.05);
+}
+
+.exit-btn:hover {
+  background: rgba(20,20,20,0.82);
+  box-shadow:
+      0 3px 12px rgba(0,0,0,0.55),
+      inset 0 0 12px rgba(255,255,255,0.12);
+}
+
+/* Аватар */
+.avatar-wrapper {
+  width: 44px;
+  height: 44px;
+
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(0,0,0,0.35);
+
+  box-shadow:
+      0 2px 10px rgba(0,0,0,0.4),
+      inset 0 0 12px rgba(255,255,255,0.08);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  overflow: hidden;
+  color: #fff;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+
+  transition: 0.25s;
+}
+
+.avatar-wrapper:hover {
+  transform: translateY(-1px);
+  box-shadow:
+      0 4px 16px rgba(0,0,0,0.55),
+      inset 0 0 14px rgba(255,255,255,0.12);
+}
+
+.avatar-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

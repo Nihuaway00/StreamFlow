@@ -18,7 +18,7 @@ const CreateStream = () => {
   useEffect(() => {
     const fetchThemes = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/themes/')
+        const response = await fetch('http://localhost/api/themes/')
         const themesData = await response.json()
         setThemes(themesData)
       } catch (error) {

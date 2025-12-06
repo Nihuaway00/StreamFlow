@@ -1,0 +1,147 @@
+.login-page {
+  width: 100vw;
+  height: 100vh;
+  background: url('/Login.png') center/cover no-repeat;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+
+/* контейнер формы и заголовка */
+.login-wrapper {
+  position: relative;
+  width: 720px;               /* увеличил ширину контейнера */
+  max-width: 90%;
+  padding: 40px 20px;
+  box-sizing: border-box;
+  text-align: center;
+  transform: translateY(-6%); /* чуть выше центра, как в макете */
+}
+
+/* Блок заголовка — центрируем и задаём большие размеры */
+.title-block {
+  position: relative;
+  margin: 0 auto 34px;
+  width: 100%;
+  height: 160px;             /* высота под эллипсы */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Сам заголовок крупный */
+.title-block h1 {
+  position: relative;
+  z-index: 20;
+  margin: 0;
+  font-size: 56px;           /* сделал крупнее */
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #000;
+  text-transform: uppercase;
+  background: transparent;
+  padding: 0 18px;
+}
+
+/* Эллипсы — большие, тонкий контур, лежат под заголовком */
+.ellipse {
+  position: absolute;
+  border: 2px solid rgba(0,0,0,0.95);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 10;
+  mix-blend-mode: normal;
+}
+
+/* внешний и внутренний эллипсы */
+.ellipse1 {
+  width: 760px;
+  height: 120px;
+  top: 38%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-6deg);
+  opacity: 0.98;
+}
+
+.ellipse2 {
+  width: 680px;
+  height: 100px;
+  top: 48%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(8deg);
+  opacity: 0.95;
+}
+
+/* маленькая звезда справа сверху заголовка */
+.star {
+  position: absolute;
+  z-index: 25;
+  right: calc(50% - 120px);
+  top: 6%;
+  font-size: 28px;
+  transform: translateX(50%);
+  pointer-events: none;
+}
+
+/* ФОРМА: ширина полей под контейнер */
+.login-form {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.login-form input {
+  width: 520px;               /* шире инпуты */
+  max-width: 92%;
+  padding: 16px 20px;
+  margin: 12px 0;
+  border-radius: 22px;
+  border: none;
+  background: rgba(255,255,255,0.6);
+  backdrop-filter: blur(4px);
+  font-size: 16px;
+  outline: none;
+  box-shadow: 0 18px 28px rgba(0,0,0,0.12) inset; /* похожая тень как на макете */
+}
+
+/* Кнопка — шире и крупнее */
+.login-form button {
+  width: 220px;
+  max-width: 60%;
+  padding: 12px 18px;
+  margin-top: 10px;
+  border-radius: 28px;
+  background: rgba(255,255,255,0.35);
+  border: 2px solid #000;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 600;
+  box-shadow: 0 12px 22px rgba(0,0,0,0.15);
+}
+
+/* Нижняя строка регистрации */
+.register-line {
+  margin-top: 28px;
+  font-size: 16px;
+  letter-spacing: 1px;
+  color: #000;
+}
+
+.register-line a {
+  color: #000;
+  text-decoration: underline;
+}
+
+/* адаптив */
+@media (max-width: 640px) {
+  .title-block { height: 120px; }
+  .title-block h1 { font-size: 34px; }
+  .ellipse1 { width: 420px; height: 80px; top: 44%; }
+  .ellipse2 { width: 360px; height: 70px; top: 52%; }
+  .star { font-size: 20px; right: calc(50% - 70px); top: 0; }
+  .login-form input { width: 88%; padding: 14px; border-radius: 16px; }
+  .login-form button { width: 52%; padding: 10px; }
+  .login-wrapper { transform: translateY(-2%); padding: 20px 8px; }
+}

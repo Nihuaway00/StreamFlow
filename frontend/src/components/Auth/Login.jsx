@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { Link } from 'react-router-dom'
+import './Login.css'
 
 const Login = () => {
   const [email, setEmail] = useState('')
@@ -18,28 +19,38 @@ const Login = () => {
   }
 
   return (
-    <div className="auth-container">
-      <h2>Вход в StreamFlow</h2>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Пароль"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <button type="submit">Войти</button>
-      </form>
-      <p style={{ textAlign: 'center', marginTop: '15px' }}>
-        Нет аккаунта? <Link to="/register" style={{ color: '#9147ff' }}>Зарегистрироваться</Link>
-      </p>
+    <div className="login-page">
+      <div className="login-wrapper">
+
+        <div className="title-block">
+          <h1>ВХОД В STREAMFLOW</h1>
+          <div className="ellipse ellipse1"></div>
+          <div className="ellipse ellipse2"></div>
+          <div className="star">✦</div>
+        </div>
+
+        <form className="login-form" onSubmit={handleSubmit}>
+          <input
+            type="email"
+            placeholder="логин"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <input
+            type="password"
+            placeholder="пароль"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+          <button type="submit">ВОЙТИ</button>
+        </form>
+
+        <p className="register-line">
+          НЕТ АККАУНТА? <Link to="/register">ЗАРЕГИСТРИРОВАТЬСЯ</Link>
+        </p>
+      </div>
     </div>
   )
 }
