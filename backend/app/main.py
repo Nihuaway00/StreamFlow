@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, streams, webhooks, users, themes, files
+from app.api import auth, streams, webhooks, users, themes, files, chats
 from app.config import settings
 from app.core.storage.service import StorageService
 from app.database import init_roles, init_themes
@@ -44,6 +44,7 @@ app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(themes.router, prefix="/api/themes", tags=["themes"])
 app.include_router(files.router, prefix="/api/files", tags=["files"])
 
+app.include_router(chats.router, prefix="/api/chats", tags=["chats"])
 
 @app.get("/")
 def read_root():

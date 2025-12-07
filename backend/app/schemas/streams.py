@@ -3,11 +3,14 @@ from typing import Optional
 
 from pydantic import BaseModel, UUID4, ConfigDict
 
+from app.schemas import ChatResponse
+
 
 class StreamCreate(BaseModel):
     title: str
     description: Optional[str] = None
     theme_ids: Optional[list[int]] = None
+
 
 class StreamEdit(BaseModel):
     title: str | None = None
@@ -22,7 +25,7 @@ class StreamAuthor(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class StreamResponse(BaseModel):
+class StreamCreateResponse(BaseModel):
     id: UUID4
     title: str
     description: Optional[str]
@@ -31,6 +34,7 @@ class StreamResponse(BaseModel):
     rtmp_url: str
     hls_url: Optional[str]
     created_at: datetime
+    chat: ChatResponse
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -44,12 +48,13 @@ class StreamPublic(BaseModel):
     viewers_count: int
     author: StreamAuthor
     themes: list[int] = []
+    chat: ChatResponse
 
     is_deleted: bool = False
     deleted_at: Optional[datetime] = None
 
-    updated_at:Optional[datetime] = None
-    created_at:Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 

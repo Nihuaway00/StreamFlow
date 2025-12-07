@@ -1,5 +1,7 @@
 from app.schemas.auth import UserRegister, UserLogin, UserResponse, Token
-from app.schemas.streams import StreamCreate, StreamResponse, StreamDetail, StreamEdit
+from app.schemas.chats import ChatResponse, SortOrder
+from app.schemas.streams import StreamCreate, StreamCreateResponse, StreamDetail, StreamEdit
+from app.schemas.messages import IncomingMessage, OutgoingMessage, MessageChangeStatus, MessageAuthor
 
 __all__ = [
     "UserRegister",
@@ -7,7 +9,13 @@ __all__ = [
     "UserResponse",
     "Token",
     "StreamCreate",
-    "StreamResponse",
+    "StreamCreateResponse",
     "StreamDetail",
-    "StreamEdit"
+    "StreamEdit",
+    "IncomingMessage",
+    "OutgoingMessage",
+    "MessageChangeStatus",
+    "ChatResponse",
+    "MessageAuthor",
+    "SortOrder"
 ]

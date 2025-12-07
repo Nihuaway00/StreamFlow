@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from app.config import settings
 from app.models import User, Stream, StreamTheme, Theme
-from app.schemas import StreamDetail
+from app.schemas import StreamDetail, ChatResponse
 from app.schemas.streams import StreamAuthor
 
 
@@ -19,6 +19,7 @@ class StreamService:
     async def edit_stream(self, stream_id: str, update_data: dict[str, any], current_user: User):
         query = (select(Stream)
                  .options(selectinload(Stream.author))
+                 .options(selectinload(Stream.chat))
                  .options(selectinload(Stream.stream_themes).selectinload(StreamTheme.theme)))
 
         stream = (await self.db.execute(query.where(Stream.id == stream_id))).scalars().first()
@@ -85,11 +86,13 @@ class StreamService:
             deleted_at=stream.deleted_at,
             updatd_at=stream.updated_at,
             created_at=stream.created_at,
+            chat=ChatResponse(id=stream.chat.id)
         )
 
     async def delete_stream(self, stream_id: str, current_user: User):
         query = (select(Stream)
                  .options(selectinload(Stream.author))
+                 .options(selectinload(Stream.chat))
                  .options(selectinload(Stream.stream_themes).selectinload(StreamTheme.theme)))
 
         stream: Stream = (await self.db.execute(query.where(Stream.id == stream_id))).scalars().first()

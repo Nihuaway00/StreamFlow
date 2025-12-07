@@ -2,7 +2,7 @@ import secrets
 from datetime import datetime, timedelta
 
 import bcrypt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from sqlalchemy import select
@@ -41,27 +41,30 @@ def generate_stream_key() -> str:
     return f"live_{secrets.token_urlsafe(24)}"
 
 
+async def verify_token(token: str, db: AsyncSession) -> User | None:
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        email: str = payload.get("sub")
+        if not email:
+            return None
+
+        user = (await db.execute(select(User).where(User.email == email))).scalars().first()
+        return user
+    except JWTError:
+        return None
+
+
+# Для HTTP
 async def get_current_user(
         credentials: HTTPAuthorizationCredentials = Depends(security),
         db: AsyncSession = Depends(get_db)
 ) -> User:
-    token = credentials.credentials
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
-            raise credentials_exception
-    except JWTError:
-        raise credentials_exception
-
-    user = (await db.execute(select(User).where(User.email == email))).scalars().first()
-    if user is None:
-        raise credentials_exception
-
+    user = await verify_token(credentials.credentials, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
     return user
+
+
+# Для WebSocket
+async def get_ws_user(token: str, db: AsyncSession) -> User | None:
+    return await verify_token(token, db)

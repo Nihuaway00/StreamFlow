@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 
 import math
@@ -9,11 +10,12 @@ from sqlalchemy.orm import selectinload
 from app.config import settings
 from app.database import get_db
 from app.dependencies.streams import get_stream_service
-from app.models import Theme, StreamTheme
+from app.models import Theme, StreamTheme, Chat
 from app.models.stream import Stream
 from app.models.user import User
+from app.schemas import ChatResponse
 from app.schemas.streams import (
-    StreamCreate, StreamResponse, StreamListResponse,
+    StreamCreate, StreamCreateResponse, StreamListResponse,
     StreamDetail, StreamPublic, StreamAuthor, StreamEdit
 )
 from app.services.streams import StreamService
@@ -22,7 +24,7 @@ from app.utils.security import get_current_user, generate_stream_key
 router = APIRouter()
 
 
-@router.post("", response_model=StreamResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=StreamCreateResponse, status_code=status.HTTP_201_CREATED)
 async def create_stream(
         stream_data: StreamCreate,
         current_user: User = Depends(get_current_user),
@@ -61,19 +63,30 @@ async def create_stream(
     await db.commit()
     await db.refresh(new_stream)
 
+    new_chat = Chat(
+        stream_id=new_stream.id,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+
+    db.add(new_chat)
+    await db.commit()
+    await db.refresh(new_chat)
+
     rtmp_url = f"rtmp://{settings.RTMP_SERVER_HOST}:{settings.RTMP_PORT}/live"
     hls_url = f"{settings.HLS_BASE_URL}/live/{stream_key}/index.m3u8"
 
-    return {
-        "id": new_stream.id,
-        "title": new_stream.title,
-        "description": new_stream.description,
-        "status": new_stream.status,
-        "stream_key": stream_key,
-        "rtmp_url": rtmp_url,
-        "hls_url": hls_url,
-        "created_at": new_stream.created_at
-    }
+    return StreamCreateResponse(
+        id=new_stream.id,
+        title=new_stream.title,
+        description=new_stream.description,
+        status=new_stream.status,
+        stream_key=stream_key,
+        rtmp_url=rtmp_url,
+        hls_url=hls_url,
+        created_at=new_stream.created_at,
+        chat=ChatResponse(id=new_chat.id)
+    )
 
 
 @router.get("", response_model=StreamListResponse)
@@ -87,6 +100,7 @@ async def get_streams(
     # Базовый запрос
     query = (select(Stream)
              .options(selectinload(Stream.author))
+             .options(selectinload(Stream.chat))
              .options(selectinload(Stream.stream_themes).selectinload(StreamTheme.theme))
              )
 
@@ -120,8 +134,8 @@ async def get_streams(
             is_deleted=s.is_deleted,
             deleted_at=s.deleted_at,
             updatd_at=s.updated_at,
-            created_at=s.created_at
-
+            created_at=s.created_at,
+            chat=ChatResponse(id=s.chat.id)
         )
         for s in streams
     ]
@@ -141,6 +155,7 @@ async def get_my_streams(
 ):
     query = (select(Stream)
              .options(selectinload(Stream.author))
+             .options(selectinload(Stream.chat))
              .options(selectinload(Stream.stream_themes).selectinload(StreamTheme.theme))
              )
     streams = (await db.execute(query.where(Stream.user_id == current_user.id))).scalars().all()
@@ -162,6 +177,7 @@ async def get_my_streams(
             updatd_at=s.updated_at,
             created_at=s.created_at,
             hls_url=hls_url,
+            chat=ChatResponse(id=s.chat.id)
         )
         for s in streams
     ]
@@ -173,6 +189,7 @@ async def get_my_streams(
 async def get_stream(stream_id: str, db: AsyncSession = Depends(get_db)):
     query = (select(Stream)
              .options(selectinload(Stream.author))
+             .options(selectinload(Stream.chat))
              .options(selectinload(Stream.stream_themes).selectinload(StreamTheme.theme))
              )
 
@@ -202,6 +219,7 @@ async def get_stream(stream_id: str, db: AsyncSession = Depends(get_db)):
         deleted_at=stream.deleted_at,
         updatd_at=stream.updated_at,
         created_at=stream.created_at,
+        chat=ChatResponse(id=stream.chat.id)
     )
 
 
