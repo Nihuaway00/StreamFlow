@@ -19,12 +19,12 @@ import HomePage from "./components/Home/HomePage"
 // Фон
 import backgroundImage from "./background.png"
 
-function App() {
+// Вынесите основной контент в отдельный компонент
+const AppContent = () => {
   const [streams, setStreams] = useState([])
   const [liveStreams, setLiveStreams] = useState([])
   const [loading, setLoading] = useState(true)
 
-  // ====== Загрузка стримов ======
   useEffect(() => {
     const fetchStreams = async () => {
       try {
@@ -55,50 +55,56 @@ function App() {
   }, [])
 
   return (
+    <Router>
+      <div
+        className="app"
+        style={{
+          background: `url(${backgroundImage}) center/cover fixed`,
+          minHeight: "100vh",
+          color: "white",
+          paddingTop: "50px",
+        }}
+      >
+        <Header />
+
+        <Routes>
+          {/* Auth */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+
+          {/* Профиль */}
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/user/:userId" element={<PublicProfile />} />
+
+          {/* Стримы */}
+          <Route path="/stream" element={<CreateStream />} />
+          <Route path="/stream/:streamId" element={<StreamPage />} />
+          <Route
+            path="/stream/:streamId/settings"
+            element={<StreamSettings />}
+          />
+
+          {/* ГЛАВНАЯ СТРАНИЦА */}
+          <Route
+            path="/"
+            element={
+              <HomePage
+                streams={streams}
+                liveStreams={liveStreams}
+                loading={loading}
+              />
+            }
+          />
+        </Routes>
+      </div>
+    </Router>
+  )
+}
+
+function App() {
+  return (
     <AuthProvider>
-      <Router>
-        <div
-          className="app"
-          style={{
-            background: `url(${backgroundImage}) center/cover fixed`,
-            minHeight: "100vh",
-            color: "white",
-            paddingTop: "50px",
-          }}
-        >
-          <Header />
-
-          <Routes>
-            {/* Auth */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-
-            {/* Профиль */}
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/user/:userId" element={<PublicProfile />} />
-
-            {/* Стримы */}
-            <Route path="/stream" element={<CreateStream />} />
-            <Route path="/stream/:streamId" element={<StreamPage />} />
-            <Route
-              path="/stream/:streamId/settings"
-              element={<StreamSettings />}
-            />
-
-            {/* ГЛАВНАЯ СТРАНИЦА */}
-            <Route
-              path="/"
-              element={
-                <HomePage
-                  streams={streams}
-                  liveStreams={liveStreams}
-                  loading={loading}
-                />
-              }
-            />
-          </Routes>
-        </div>
-      </Router>
+      <AppContent />
     </AuthProvider>
   )
 }

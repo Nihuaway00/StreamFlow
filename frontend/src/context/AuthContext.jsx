@@ -19,13 +19,15 @@ export const AuthProvider = ({ children }) => {
   // Функция для получения данных пользователя
   const fetchUser = async () => {
     try {
-      const response = await authAPI.getCurrentUser() // Теперь этот метод есть!
-      setUser(response.data)
-      // Также сохраняем в localStorage для быстрого доступа
-      localStorage.setItem('user', JSON.stringify(response.data))
-      return response.data
+      const response = await authAPI.getCurrentUser()
+      const userData = response.data
+      console.log('✅ Получены данные пользователя:', userData)
+      
+      setUser(userData)
+      localStorage.setItem('user', JSON.stringify(userData))
+      return userData
     } catch (error) {
-      console.error('Error fetching user:', error)
+      console.error('❌ Ошибка получения пользователя:', error)
       if (error.response?.status === 401) {
         logout()
       }
@@ -40,19 +42,32 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('user', JSON.stringify(updatedUser))
   }
 
+  // Инициализация при загрузке
   useEffect(() => {
     const initAuth = async () => {
       const token = localStorage.getItem('access_token')
+      console.log('🔄 Инициализация Auth:', { token: token ? 'Есть' : 'Нет' })
+      
       if (token) {
-        // Сначала пробуем получить из localStorage для быстрой загрузки
+        // Пробуем получить из localStorage
         const savedUser = localStorage.getItem('user')
         if (savedUser) {
-          setUser(JSON.parse(savedUser))
+          try {
+            const parsedUser = JSON.parse(savedUser)
+            console.log('📂 Загружен пользователь из localStorage:', parsedUser)
+            setUser(parsedUser)
+          } catch (e) {
+            console.error('Ошибка парсинга сохраненного пользователя:', e)
+          }
         }
         
-        // Затем запрашиваем свежие данные с сервера
-        await fetchUser()
-        setIsAuthenticated(true)
+        // Пробуем получить свежие данные
+        try {
+          await fetchUser()
+          setIsAuthenticated(true)
+        } catch (error) {
+          console.error('Не удалось загрузить пользователя:', error)
+        }
       }
       setLoading(false)
     }
@@ -62,14 +77,58 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
+      console.log('🔐 Начало процесса логина для:', email)
       const response = await authAPI.login({ email, password })
+      console.log('✅ Ответ от сервера:', response.data)
+      
+      // Сохраняем токены
       localStorage.setItem('access_token', response.data.access_token)
+      localStorage.setItem('refresh_token', response.data.refresh_token)
       
-      await fetchUser()
-      setIsAuthenticated(true)
-      
-      return { success: true }
+      // Проверяем есть ли пользователь в ответе
+      if (response.data.user) {
+        console.log('👤 Пользователь в ответе:', response.data.user)
+        setUser(response.data.user)
+        localStorage.setItem('user', JSON.stringify(response.data.user))
+        setIsAuthenticated(true)
+        return { success: true }
+      } else if (response.data.user_id) {
+        // Если есть только user_id, создаем минимальный объект
+        const tempUser = {
+          id: response.data.user_id,
+          email: email,
+          username: email.split('@')[0] // временно
+        }
+        console.log('🔄 Создан временный пользователь:', tempUser)
+        setUser(tempUser)
+        localStorage.setItem('user', JSON.stringify(tempUser))
+        
+        // Пробуем получить полные данные
+        try {
+          await fetchUser()
+        } catch (error) {
+          console.warn('Не удалось получить полные данные, использую временные')
+        }
+        
+        setIsAuthenticated(true)
+        return { success: true }
+      } else {
+        // Нет user в ответе, пробуем получить отдельно
+        console.log('🔄 Нет пользователя в ответе, запрашиваю отдельно...')
+        try {
+          await fetchUser()
+          setIsAuthenticated(true)
+          return { success: true }
+        } catch (error) {
+          console.error('Не удалось получить пользователя после логина:', error)
+          return { 
+            success: false, 
+            error: 'Вход выполнен, но не удалось загрузить данные пользователя' 
+          }
+        }
+      }
     } catch (error) {
+      console.error('❌ Ошибка логина:', error.response?.data || error.message)
       return { 
         success: false, 
         error: error.response?.data?.detail || 'Ошибка входа' 
@@ -80,8 +139,17 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const response = await authAPI.register(userData)
+      console.log('✅ Регистрация успешна:', response.data)
+      
+      // После регистрации автоматически логинимся
+      const loginResult = await login(userData.email, userData.password)
+      if (!loginResult.success) {
+        return loginResult
+      }
+      
       return { success: true, data: response.data }
     } catch (error) {
+      console.error('❌ Ошибка регистрации:', error.response?.data)
       return {
         success: false,
         error: error.response?.data?.detail || 'Ошибка регистрации'
@@ -93,14 +161,15 @@ export const AuthProvider = ({ children }) => {
     try {
       await authAPI.logout()
     } catch (error) {
-      console.error('Logout error:', error)
+      console.error('Ошибка выхода:', error)
     } finally {
+      console.log('👋 Выход из системы')
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
       localStorage.removeItem('user')
       setUser(null)
       setIsAuthenticated(false)
-      window.location.reload()
+      window.location.href = '/login'
     }
   }
 

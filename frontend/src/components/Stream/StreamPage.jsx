@@ -3,6 +3,8 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { streamAPI } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
 import StreamPlayer from './StreamPlayer'
+import StreamChat from './StreamChat'
+import api from '../../services/api' // Добавьте этот импорт!
 
 const StreamPage = () => {
   const { streamId } = useParams()
@@ -16,6 +18,68 @@ const StreamPage = () => {
   const [themes, setThemes] = useState([])
   const [themesLoading, setThemesLoading] = useState(false)
   const [showSettingsMenu, setShowSettingsMenu] = useState(false)
+  const [streamerAvatarUrl, setStreamerAvatarUrl] = useState(null) // Новое состояние для аватара стримера
+
+  // Функция для получения URL аватара
+  const getAvatarUrl = async (fileKey) => {
+    if (!fileKey) return null
+    
+    try {
+      // POST запрос, а не GET!
+      const response = await api.post('/files/', null, {
+        params: { file_key: fileKey }
+      })
+      
+      let signedUrl = response.data
+      
+      if (typeof signedUrl === 'string') {
+        // Заменяем storage:9000 на localhost:9000
+        if (signedUrl.includes('storage:9000')) {
+          signedUrl = signedUrl.replace('storage:9000', 'localhost:9000')
+        }
+        
+        // Проверяем что URL валидный
+        try {
+          new URL(signedUrl)
+          return signedUrl
+        } catch {
+          return null
+        }
+      }
+      return null
+      
+    } catch (error) {
+      console.error('Ошибка получения URL аватара:', error)
+      return null
+    }
+  }
+
+  // Функция для извлечения file_key из avatar_url
+  const extractFileKey = (avatarUrl) => {
+    if (!avatarUrl) return null
+    
+    // Если это уже file_key (простая строка без слэшей и точек)
+    if (typeof avatarUrl === 'string' && 
+        !avatarUrl.includes('://') && 
+        !avatarUrl.startsWith('/')) {
+      return avatarUrl
+    }
+    
+    // Если это URL, извлекаем путь
+    try {
+      // Иногда сервер возвращает относительный путь
+      if (avatarUrl.startsWith('/')) {
+        return avatarUrl.substring(1)
+      }
+      
+      // Если это полный URL
+      const url = new URL(avatarUrl)
+      return url.pathname.substring(1)
+    } catch (error) {
+      // Если не URL, возвращаем как есть
+      return avatarUrl
+    }
+  }
 
   useEffect(() => {
     const fetchStream = async () => {
@@ -39,7 +103,19 @@ const StreamPage = () => {
       try {
         setStreamerLoading(true)
         const response = await streamAPI.getUserPublicInfo(userId)
-        setStreamerInfo(response.data)
+        const streamerData = response.data
+        
+        setStreamerInfo(streamerData)
+        
+        // Загружаем аватар стримера если есть
+        if (streamerData.avatar_url) {
+          const fileKey = extractFileKey(streamerData.avatar_url)
+          if (fileKey) {
+            const avatarUrl = await getAvatarUrl(fileKey)
+            setStreamerAvatarUrl(avatarUrl)
+          }
+        }
+        
       } catch (err) {
         console.error('Error fetching streamer info:', err)
         setStreamerInfo({
@@ -69,6 +145,12 @@ const StreamPage = () => {
     const interval = setInterval(fetchStream, 10000)
     return () => clearInterval(interval)
   }, [streamId])
+
+  // Обработчик ошибок загрузки изображения
+  const handleImageError = (e) => {
+    console.error('Ошибка загрузки аватара стримера')
+    e.target.style.display = 'none'
+  }
 
   // Проверяем, является ли пользователь автором стрима
   const isStreamOwner = user && stream?.author?.id === user.id
@@ -333,7 +415,7 @@ const StreamPage = () => {
             }}>
               <h3 style={{ color: 'white', margin: 0 }}>🎮 О стримере</h3>
               <Link 
-                to={`/profile/${stream.author.id}`}
+                to={`/user/${stream.author.id}`} // Исправлено на /user/
                 style={{
                   background: '#9147ff',
                   color: 'white',
@@ -341,8 +423,11 @@ const StreamPage = () => {
                   borderRadius: '4px',
                   textDecoration: 'none',
                   fontSize: '14px',
-                  fontWeight: '500'
+                  fontWeight: '500',
+                  transition: 'all 0.2s'
                 }}
+                onMouseEnter={(e) => e.target.style.background = '#772ce8'}
+                onMouseLeave={(e) => e.target.style.background = '#9147ff'}
               >
                 📋 Перейти в профиль
               </Link>
@@ -354,8 +439,20 @@ const StreamPage = () => {
                 textAlign: 'center', 
                 color: '#adadb8',
                 background: '#0e0e10',
-                borderRadius: '4px'
+                borderRadius: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px'
               }}>
+                <div className="spinner" style={{
+                  width: '20px',
+                  height: '20px',
+                  border: '2px solid rgba(255, 255, 255, 0.3)',
+                  borderTopColor: 'white',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }} />
                 Загрузка информации о стримере...
               </div>
             ) : (
@@ -364,7 +461,7 @@ const StreamPage = () => {
                 <div style={{
                   width: '60px',
                   height: '60px',
-                  background: streamerInfo?.avatar_url ? 'transparent' : 'linear-gradient(45deg, #9147ff, #772ce8)',
+                  background: streamerAvatarUrl ? 'transparent' : 'linear-gradient(45deg, #9147ff, #772ce8)',
                   borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
@@ -373,16 +470,34 @@ const StreamPage = () => {
                   fontWeight: 'bold',
                   color: 'white',
                   overflow: 'hidden',
-                  flexShrink: 0
+                  flexShrink: 0,
+                  border: '2px solid #fff'
                 }}>
-                  {streamerInfo?.avatar_url ? (
+                  {streamerAvatarUrl ? (
                     <img 
-                      src={`http://localhost:8000/api/files/?file_key=${streamerInfo.avatar_url}`} 
+                      src={streamerAvatarUrl} 
                       alt="Avatar" 
-                      style={{width: '100%', height: '100%', objectFit: 'cover'}}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover'
+                      }}
+                      onError={handleImageError}
                     />
                   ) : (
-                    (streamerInfo?.username || stream.author.username)?.charAt(0).toUpperCase() || 'S'
+                    <div style={{
+                      width: '100%',
+                      height: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: 'linear-gradient(45deg, #9147ff, #772ce8)',
+                      color: 'white',
+                      fontSize: '20px',
+                      fontWeight: 'bold'
+                    }}>
+                      {(streamerInfo?.username || stream.author.username)?.charAt(0).toUpperCase() || 'S'}
+                    </div>
                   )}
                 </div>
 
@@ -392,22 +507,21 @@ const StreamPage = () => {
                     <h4 style={{ 
                       margin: 0, 
                       color: 'white',
-                      fontSize: '18px'
+                      fontSize: '18px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
                     }}>
                       {streamerInfo?.username || stream.author.username}
+                      {streamerInfo?.is_verified && (
+                        <span style={{
+                          color: '#00ff7f',
+                          fontSize: '14px'
+                        }}>
+                          ✓
+                        </span>
+                      )}
                     </h4>
-                    {streamerInfo?.is_verified && (
-                      <span style={{
-                        background: '#9147ff',
-                        color: 'white',
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        fontSize: '10px',
-                        fontWeight: 'bold'
-                      }}>
-                        ✅ Проверен
-                      </span>
-                    )}
                   </div>
 
                   {streamerInfo?.bio && (
@@ -415,9 +529,10 @@ const StreamPage = () => {
                       color: '#adadb8', 
                       margin: '0 0 10px 0',
                       fontSize: '14px',
-                      lineHeight: '1.4'
+                      lineHeight: '1.4',
+                      fontStyle: 'italic'
                     }}>
-                      {streamerInfo.bio}
+                      "{streamerInfo.bio}"
                     </p>
                   )}
 
@@ -428,7 +543,8 @@ const StreamPage = () => {
                     gap: '10px',
                     background: '#0e0e10',
                     padding: '12px',
-                    borderRadius: '6px'
+                    borderRadius: '6px',
+                    marginBottom: '10px'
                   }}>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ color: '#9147ff', fontSize: '16px', fontWeight: 'bold' }}>
@@ -461,33 +577,38 @@ const StreamPage = () => {
                   </div>
 
                   {/* ДОПОЛНИТЕЛЬНАЯ ИНФОРМАЦИЯ */}
-                  {(streamerInfo?.country || streamerInfo?.city) && (
-                    <div style={{ 
-                      marginTop: '10px',
-                      display: 'flex',
-                      gap: '15px',
-                      fontSize: '12px',
-                      color: '#adadb8'
-                    }}>
-                      {streamerInfo?.country && (
-                        <span>🌍 {streamerInfo.country}</span>
-                      )}
-                      {streamerInfo?.city && (
-                        <span>🏙️ {streamerInfo.city}</span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* ДАТА РЕГИСТРАЦИИ */}
-                  {streamerInfo?.created_at && (
-                    <div style={{ 
-                      marginTop: '10px',
-                      fontSize: '12px',
-                      color: '#adadb8'
-                    }}>
-                      📅 Участник с {new Date(streamerInfo.created_at).toLocaleDateString('ru-RU')}
-                    </div>
-                  )}
+                  <div style={{ 
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '15px',
+                    fontSize: '12px',
+                    color: '#adadb8'
+                  }}>
+                    {streamerInfo?.country && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <span>🌍</span>
+                        <span>{streamerInfo.country}</span>
+                      </div>
+                    )}
+                    {streamerInfo?.city && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <span>🏙️</span>
+                        <span>{streamerInfo.city}</span>
+                      </div>
+                    )}
+                    {streamerInfo?.created_at && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <span>📅</span>
+                        <span>Участник с {new Date(streamerInfo.created_at).toLocaleDateString('ru-RU')}</span>
+                      </div>
+                    )}
+                    {streamerInfo?.last_login && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <span>🕐</span>
+                        <span>Был онлайн {new Date(streamerInfo.last_login).toLocaleDateString('ru-RU')}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -503,58 +624,14 @@ const StreamPage = () => {
         display: 'flex',
         flexDirection: 'column'
       }}>
-        <h3 style={{ color: 'white', marginBottom: '20px' }}>💬 Чат стрима</h3>
-        
-        <div style={{
-          flex: 1,
-          background: '#0e0e10',
-          borderRadius: '8px',
-          padding: '15px',
-          marginBottom: '15px',
-          color: '#adadb8',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          textAlign: 'center'
-        }}>
-          <div>
-            <div style={{ fontSize: '32px', marginBottom: '10px' }}>💬</div>
-            <p>Чат будет доступен<br />в ближайшем обновлении</p>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <input
-            type="text"
-            placeholder="Чат скоро будет доступен..."
-            disabled
-            style={{
-              flex: 1,
-              padding: '10px',
-              background: '#1a1a1a',
-              border: '1px solid #333',
-              borderRadius: '4px',
-              color: '#666',
-              fontSize: '14px'
-            }}
-          />
-          <button 
-            disabled
-            style={{
-              background: '#333',
-              color: '#666',
-              border: 'none',
-              padding: '10px 15px',
-              borderRadius: '4px',
-              cursor: 'not-allowed',
-              fontSize: '14px'
-            }}
-          >
-            Отправить
-          </button>
-        </div>
+        <StreamChat streamId={streamId} stream={stream} />
       </div>
 
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   )
 }

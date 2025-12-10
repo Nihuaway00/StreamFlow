@@ -18,16 +18,21 @@ const CreateStream = () => {
   useEffect(() => {
     const fetchThemes = async () => {
       try {
-        const response = await fetch('http://localhost/api/themes/')
-        const themesData = await response.json()
-        setThemes(themesData)
+        const response = await streamAPI.getThemes()
+        // streamAPI.getThemes() уже возвращает response.data
+        setThemes(response.data || [])
       } catch (error) {
         console.error('Ошибка загрузки тематик:', error)
+        // Демо данные на случай ошибки
+        setThemes([
+          { id: 1, name: "gaming", description: "Стримы про видеоигры" },
+          { id: 2, name: "music", description: "Музыкальные стримы" },
+          { id: 3, name: "just_chatting", description: "Разговорные стримы" },
+        ])
       } finally {
         setThemesLoading(false)
       }
     }
-    
     fetchThemes()
   }, [])
 

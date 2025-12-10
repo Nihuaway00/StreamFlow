@@ -1,408 +1,612 @@
-import React, { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import React, { useEffect, useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 import api from '../../services/api'
+import './PublicProfile.css'
 
 const PublicProfile = () => {
-    const { userId } = useParams()
-    const [user, setUser] = useState(null)
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState(null)
-    const [userStreams, setUserStreams] = useState([])
-    const [streamsLoading, setStreamsLoading] = useState(true)
+  const { userId } = useParams()
+  const navigate = useNavigate()
 
-    useEffect(() => {
-        const fetchUserData = async () => {
-            try {
-                console.log('🔄 Загружаем публичные данные пользователя:', userId)
-                
-                // Загружаем публичные данные пользователя
-                const userResponse = await api.get(`/users/${userId}`)
-                console.log('✅ Данные пользователя:', userResponse.data)
-                setUser(userResponse.data)
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [userStreams, setUserStreams] = useState([])
+  const [streamsLoading, setStreamsLoading] = useState(true)
+  const [avatarUrl, setAvatarUrl] = useState(null)
 
-                // Загружаем стримы пользователя
-                const streamsResponse = await api.get('/streams', {
-                    params: { user_id: userId, limit: 6 }
-                })
-                console.log('📺 Стримы пользователя:', streamsResponse.data)
-                setUserStreams(streamsResponse.data.items || [])
+  // Загрузка данных пользователя
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        setLoading(true)
+        console.log('🔄 Загружаю данные пользователя:', userId)
 
-            } catch (err) {
-                console.error('❌ Ошибка загрузки данных:', err)
-                setError('Пользователь не найден')
-            } finally {
-                setLoading(false)
-                setStreamsLoading(false)
-            }
+        const response = await api.get(`/users/${userId}`)
+        console.log('✅ Ответ от сервера:', response.data)
+
+        let userData
+        if (typeof response.data === 'string') {
+          try {
+            userData = JSON.parse(response.data)
+          } catch (parseError) {
+            console.error('Ошибка парсинга:', parseError)
+            userData = response.data
+          }
+        } else {
+          userData = response.data
         }
 
-        fetchUserData()
-    }, [userId])
+        setUser(userData)
 
-    const getGradient = (index) => {
-        const gradients = [
-            'linear-gradient(45deg, #ff6b35, #ff8e53)',
-            'linear-gradient(45deg, #9147ff, #772ce8)',
-            'linear-gradient(45deg, #00ff7f, #00cc66)',
-            'linear-gradient(45deg, #ff4757, #ff3742)',
-            'linear-gradient(45deg, #00d2d3, #00a8a8)',
-            'linear-gradient(45deg, #ff9ff3, #f368e0)'
-        ]
-        return gradients[index % gradients.length]
-    }
+        // Загружаем аватар если есть
+        if (userData.avatar_url) {
+          await loadAvatar(userData.avatar_url)
+        }
 
-    const getStreamEmoji = (title) => {
-        if (!title) return '🎥'
-        const lowerTitle = title.toLowerCase()
-        if (lowerTitle.includes('музыка') || lowerTitle.includes('трек') || lowerTitle.includes('концерт')) return '🎵'
-        if (lowerTitle.includes('игра') || lowerTitle.includes('турнир') || lowerTitle.includes('cs2')) return '🎮'
-        if (lowerTitle.includes('dota') || lowerTitle.includes('дота')) return '⚔️'
-        if (lowerTitle.includes('общение') || lowerTitle.includes('chat')) return '💬'
-        if (lowerTitle.includes('рисование') || lowerTitle.includes('арт')) return '🎨'
-        if (lowerTitle.includes('путешествие') || lowerTitle.includes('irl')) return '🌍'
-        return '🎥'
+      } catch (err) {
+        console.error('❌ Ошибка загрузки пользователя:', err)
+        setError('Пользователь не найден')
+      } finally {
+        setLoading(false)
+      }
     }
 
-    // Условный рендеринг должен быть внутри функции компонента
-    if (loading) {
-        return (
-            <div style={{ padding: '50px', textAlign: 'center', color: 'white' }}>
-                <div style={{ fontSize: '32px', marginBottom: '10px' }}>⏳</div>
-                Загрузка профиля...
-            </div>
-        )
-    }
-    
-    if (error) {
-        return (
-            <div style={{ padding: '50px', textAlign: 'center', color: 'white' }}>
-                <div style={{ fontSize: '32px', marginBottom: '10px' }}>❌</div>
-                {error}
-            </div>
-        )
-    }
-    
-    if (!user) {
-        return (
-            <div style={{ padding: '50px', textAlign: 'center', color: 'white' }}>
-                <div style={{ fontSize: '32px', marginBottom: '10px' }}>🔍</div>
-                Пользователь не найден
-            </div>
-        )
+    fetchUserData()
+  }, [userId])
+
+  // Загрузка стримов пользователя
+  useEffect(() => {
+    if (!user) return
+
+    const fetchUserStreams = async () => {
+      try {
+        setStreamsLoading(true)
+        console.log('📡 Загружаю стримы пользователя...')
+
+        // Сначала пробуем получить все стримы
+        const response = await api.get('/streams', {
+          params: { limit: 100, page: 1 }
+        })
+
+        console.log('📦 Все стримы:', response.data)
+
+        // Фильтруем стримы этого пользователя
+        let allStreams = []
+
+        if (Array.isArray(response.data)) {
+          allStreams = response.data
+        } else if (response.data && Array.isArray(response.data.items)) {
+          allStreams = response.data.items
+        }
+
+        const userStreamsFiltered = allStreams.filter(stream => {
+          return stream.author?.id === userId || 
+                 stream.user_id === userId ||
+                 stream.owner_id === userId
+        })
+
+        console.log('✅ Стримы пользователя:', userStreamsFiltered)
+        setUserStreams(userStreamsFiltered)
+
+      } catch (err) {
+        console.error('Ошибка загрузки стримов:', err)
+        setUserStreams([])
+      } finally {
+        setStreamsLoading(false)
+      }
     }
 
+    fetchUserStreams()
+  }, [user, userId])
+
+  // Функция для загрузки аватара
+  const loadAvatar = async (avatarUrl) => {
+    try {
+      console.log('🔄 Загрузка аватара:', avatarUrl)
+
+      // Извлекаем file_key из avatar_url
+      const extractFileKey = (url) => {
+        if (!url) return null
+        if (!url.includes('://') && !url.includes('/')) {
+          return url
+        }
+        try {
+          const urlObj = new URL(url)
+          return urlObj.pathname.substring(1)
+        } catch {
+          return url
+        }
+      }
+
+      const fileKey = extractFileKey(avatarUrl)
+      if (!fileKey) return
+
+      // Получаем signed URL
+      const response = await api.post('/files/', null, {
+        params: { file_key: fileKey }
+      })
+
+      let signedUrl = response.data
+      if (signedUrl.includes('storage:9000')) {
+        signedUrl = signedUrl.replace('storage:9000', 'localhost:9000')
+      }
+
+      console.log('✅ URL аватара:', signedUrl)
+      setAvatarUrl(signedUrl)
+
+    } catch (error) {
+      console.error('Ошибка загрузки аватара:', error)
+    }
+  }
+
+  // Функция для получения эмодзи стрима
+  const getStreamEmoji = (title) => {
+    if (!title) return '🎥'
+    const lowerTitle = title.toLowerCase()
+    if (lowerTitle.includes('музыка') || lowerTitle.includes('трек')) return '🎵'
+    if (lowerTitle.includes('игра') || lowerTitle.includes('cs2')) return '🎮'
+    if (lowerTitle.includes('dota') || lowerTitle.includes('дота')) return '⚔️'
+    if (lowerTitle.includes('общение') || lowerTitle.includes('chat')) return '💬'
+    if (lowerTitle.includes('рисование') || lowerTitle.includes('арт')) return '🎨'
+    return '🎥'
+  }
+
+  // Форматирование даты
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Неизвестно'
+    try {
+      return new Date(dateString).toLocaleDateString('ru-RU', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+    } catch {
+      return 'Неизвестно'
+    }
+  }
+
+  if (loading) {
     return (
-        <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-            
-            {/* ШАПКА ПРОФИЛЯ */}
-            <div style={{
-                background: '#18181b',
-                borderRadius: '8px',
-                padding: '30px',
-                marginBottom: '20px',
-                border: '1px solid #333',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '20px'
-            }}>
-                <div style={{
-                    width: '100px',
-                    height: '100px',
-                    background: user?.avatar_url ? 'transparent' : 'linear-gradient(45deg, #9147ff, #772ce8)',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '36px',
-                    fontWeight: 'bold',
-                    color: 'white',
-                    overflow: 'hidden'
-                }}>
-                    {user?.avatar_url ? (
-                        <img 
-                            src={`http://localhost:8000/api/files/?file_key=${user.avatar_url}`} 
-                            alt="Avatar" 
-                            style={{width: '100%', height: '100%', objectFit: 'cover'}}
-                        />
-                    ) : (
-                        user?.username?.charAt(0).toUpperCase() || 'U'
-                    )}
-                </div>
-                
-                <div style={{ flex: 1 }}>
-                    <h1 style={{ margin: '0 0 5px 0', fontSize: '28px' }}>
-                        {user?.username || 'Пользователь'}
-                    </h1>
-                    {user?.first_name && user?.last_name && (
-                        <p style={{ margin: '0 0 5px 0', color: '#adadb8', fontSize: '18px' }}>
-                            {user.first_name} {user.last_name}
-                        </p>
-                    )}
-                    <p style={{ margin: 0, color: '#adadb8' }}>
-                        {user?.email || 'email@example.com'}
-                    </p>
-                    {user?.bio && (
-                        <p style={{ margin: '10px 0 0 0', color: '#efeff1', fontStyle: 'italic' }}>
-                            "{user.bio}"
-                        </p>
-                    )}
-                </div>
-                
-                <div style={{
-                    background: '#9147ff20',
-                    border: '1px solid #9147ff',
-                    padding: '10px 20px',
-                    borderRadius: '20px',
-                    color: '#9147ff',
-                    fontSize: '14px'
-                }}>
-                    📍 Участник StreamFlow
-                </div>
-            </div>
-
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: '2fr 1fr',
-                gap: '20px'
-            }}>
-                
-                {/* ЛЕВАЯ КОЛОНКА - ОСНОВНАЯ ИНФОРМАЦИЯ */}
-                <div>
-                    
-                    {/* ИНФОРМАЦИЯ О ПОЛЬЗОВАТЕЛЕ */}
-                    <div style={{
-                        background: '#18181b',
-                        borderRadius: '8px',
-                        padding: '25px',
-                        marginBottom: '20px',
-                        border: '1px solid #333'
-                    }}>
-                        <h2 style={{ marginBottom: '20px', color: '#efeff1' }}>👤 Информация</h2>
-                        
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                            gap: '15px'
-                        }}>
-                            {user?.country && (
-                                <div>
-                                    <strong style={{ color: '#adadb8' }}>🌍 Страна:</strong>
-                                    <p style={{ color: 'white', margin: '5px 0 0 0' }}>{user.country}</p>
-                                </div>
-                            )}
-                            
-                            {user?.city && (
-                                <div>
-                                    <strong style={{ color: '#adadb8' }}>🏙️ Город:</strong>
-                                    <p style={{ color: 'white', margin: '5px 0 0 0' }}>{user.city}</p>
-                                </div>
-                            )}
-                            
-                            {user?.website && (
-                                <div>
-                                    <strong style={{ color: '#adadb8' }}>🌐 Веб-сайт:</strong>
-                                    <p style={{ color: 'white', margin: '5px 0 0 0' }}>
-                                        <a 
-                                            href={user.website} 
-                                            target="_blank" 
-                                            rel="noopener noreferrer"
-                                            style={{ color: '#9147ff', textDecoration: 'none' }}
-                                        >
-                                            {user.website}
-                                        </a>
-                                    </p>
-                                </div>
-                            )}
-                            
-                            <div>
-                                <strong style={{ color: '#adadb8' }}>📅 Регистрация:</strong>
-                                <p style={{ color: 'white', margin: '5px 0 0 0' }}>
-                                    {new Date(user.created_at).toLocaleDateString('ru-RU')}
-                                </p>
-                            </div>
-                            
-                            {user?.last_login && (
-                                <div>
-                                    <strong style={{ color: '#adadb8' }}>🕐 Последний вход:</strong>
-                                    <p style={{ color: 'white', margin: '5px 0 0 0' }}>
-                                        {new Date(user.last_login).toLocaleDateString('ru-RU')}
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* СТРИМЫ ПОЛЬЗОВАТЕЛЯ */}
-                    <div style={{
-                        background: '#18181b',
-                        borderRadius: '8px',
-                        padding: '25px',
-                        border: '1px solid #333'
-                    }}>
-                        <h2 style={{ marginBottom: '20px', color: '#efeff1' }}>🎥 Стримы пользователя</h2>
-                        
-                        {streamsLoading ? (
-                            <div style={{
-                                background: '#0e0e10',
-                                padding: '30px',
-                                borderRadius: '4px',
-                                textAlign: 'center',
-                                color: '#adadb8'
-                            }}>
-                                <p>Загрузка стримов...</p>
-                            </div>
-                        ) : userStreams.length === 0 ? (
-                            <div style={{
-                                background: '#0e0e10',
-                                padding: '30px',
-                                borderRadius: '4px',
-                                textAlign: 'center',
-                                color: '#adadb8'
-                            }}>
-                                <div style={{ fontSize: '48px', marginBottom: '15px' }}>📺</div>
-                                <p>Пользователь пока не проводил трансляции</p>
-                            </div>
-                        ) : (
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                                gap: '15px'
-                            }}>
-                                {userStreams.map((stream, index) => (
-                                    <Link 
-                                        key={stream.id}
-                                        to={`/stream/${stream.id}`}
-                                        style={{ textDecoration: 'none' }}
-                                    >
-                                        <div style={{
-                                            background: '#0e0e10',
-                                            borderRadius: '8px',
-                                            overflow: 'hidden',
-                                            border: '1px solid #333',
-                                            transition: 'transform 0.2s',
-                                            cursor: 'pointer'
-                                        }} 
-                                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-                                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                                        >
-                                            <div style={{
-                                                background: getGradient(index),
-                                                height: '120px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                color: 'white',
-                                                fontSize: '24px',
-                                                fontWeight: 'bold',
-                                                position: 'relative'
-                                            }}>
-                                                {getStreamEmoji(stream.title)}
-                                                {stream.status === 'live' && (
-                                                    <div style={{
-                                                        position: 'absolute',
-                                                        top: '10px',
-                                                        left: '10px',
-                                                        background: '#e91916',
-                                                        color: 'white',
-                                                        padding: '4px 8px',
-                                                        borderRadius: '4px',
-                                                        fontSize: '10px',
-                                                        fontWeight: 'bold'
-                                                    }}>
-                                                        🔴 LIVE
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div style={{ padding: '15px' }}>
-                                                <h3 style={{ 
-                                                    margin: '0 0 8px 0', 
-                                                    color: '#efeff1',
-                                                    fontSize: '16px',
-                                                    overflow: 'hidden',
-                                                    textOverflow: 'ellipsis',
-                                                    whiteSpace: 'nowrap'
-                                                }}>
-                                                    {stream.title || 'Название стрима'}
-                                                </h3>
-                                                <p style={{ 
-                                                    color: '#adadb8', 
-                                                    marginBottom: '10px',
-                                                    fontSize: '14px',
-                                                    overflow: 'hidden',
-                                                    textOverflow: 'ellipsis',
-                                                    whiteSpace: 'nowrap'
-                                                }}>
-                                                    {stream.description || 'Без описания'}
-                                                </p>
-                                                <div style={{ 
-                                                    display: 'flex', 
-                                                    justifyContent: 'space-between',
-                                                    fontSize: '12px',
-                                                    color: '#adadb8'
-                                                }}>
-                                                    <span>👁️ {stream.viewers_count || 0}</span>
-                                                    <span style={{ 
-                                                        background: stream.status === 'live' ? '#e91916' : '#666', 
-                                                        color: 'white', 
-                                                        padding: '2px 6px', 
-                                                        borderRadius: '4px' 
-                                                    }}>
-                                                        {stream.status === 'live' ? 'LIVE' : 'OFFLINE'}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </Link>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                </div>
-
-                {/* ПРАВАЯ КОЛОНКА - ДОПОЛНИТЕЛЬНАЯ ИНФО */}
-                <div>
-                    
-                    {/* СТАТУС */}
-                    <div style={{
-                        background: '#18181b',
-                        borderRadius: '8px',
-                        padding: '20px',
-                        marginBottom: '20px',
-                        border: '1px solid #333'
-                    }}>
-                        <h3 style={{ marginBottom: '15px', color: '#efeff1' }}>ℹ️ Статус</h3>
-                        <div style={{ color: '#adadb8', fontSize: '14px', lineHeight: '1.5' }}>
-                            <p>🎯 <strong>Статус:</strong> {user.is_verified ? '✅ Подтвержден' : '⏳ Ожидает подтверждения'}</p>
-                            <p>📊 <strong>Активность:</strong> {user.is_active ? '🟢 Активен' : '🔴 Неактивен'}</p>
-                            <p>👁️ <strong>Подписчики:</strong> 0</p>
-                            <p>🎥 <strong>Стримов:</strong> {userStreams.length}</p>
-                            <p>🌟 <strong>Всего просмотров:</strong> {userStreams.reduce((total, stream) => total + (stream.viewers_count || 0), 0)}</p>
-                        </div>
-                    </div>
-
-                    {/* КОНТАКТЫ */}
-                    {(user?.phone) && (
-                        <div style={{
-                            background: '#18181b',
-                            borderRadius: '8px',
-                            padding: '20px',
-                            border: '1px solid #333'
-                        }}>
-                            <h3 style={{ marginBottom: '15px', color: '#efeff1' }}>📞 Контакты</h3>
-                            <div style={{ color: '#adadb8', fontSize: '14px', lineHeight: '1.5' }}>
-                                {user.phone && <p>📱 <strong>Телефон:</strong> {user.phone}</p>}
-                                {user.email && <p>📧 <strong>Email:</strong> {user.email}</p>}
-                            </div>
-                        </div>
-                    )}
-
-                </div>
-
-            </div>
-
-        </div>
+      <div className="public-profile" style={{ padding: '40px', textAlign: 'center', color: '#adadb8' }}>
+        <div style={{ fontSize: '24px', marginBottom: '20px' }}>🌀</div>
+        <div>Загрузка профиля...</div>
+      </div>
     )
+  }
+
+  if (error || !user) {
+    return (
+      <div className="public-profile" style={{ padding: '40px', textAlign: 'center', color: '#adadb8' }}>
+        <div style={{ fontSize: '48px', marginBottom: '20px' }}>😕</div>
+        <div style={{ fontSize: '20px', marginBottom: '10px' }}>Пользователь не найден</div>
+        <p style={{ marginBottom: '20px' }}>Такого пользователя не существует или у вас нет доступа</p>
+        <button
+          onClick={() => navigate(-1)}
+          className="pp-button-primary"
+          style={{
+            background: '#9147ff',
+            color: 'white',
+            border: 'none',
+            padding: '10px 20px',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          ← Назад
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="public-profile">
+
+      {/* ШАПКА ПРОФИЛЯ */}
+      <div className="pp-card">
+        <div className="pp-header-gradient" />
+
+        <div className="pp-header-inner">
+          {/* АВАТАР */}
+          <div className="pp-avatar">
+            {avatarUrl ? (
+              <img 
+                src={avatarUrl} 
+                alt={user.username}
+                onError={(e) => {
+                  console.error('Ошибка загрузки аватара')
+                  e.target.style.display = 'none'
+                }}
+              />
+            ) : (
+              <div className="pp-avatar-fallback">
+                {user.username?.charAt(0).toUpperCase() || 'U'}
+              </div>
+            )}
+          </div>
+
+          {/* ИНФОРМАЦИЯ */}
+          <div className="pp-user-info">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '10px' }}>
+              <h1 className="pp-username">{user.username}</h1>
+
+              {user.is_verified && (
+                <span className="pp-verified">✅ Подтвержден</span>
+              )}
+            </div>
+
+            {user.first_name && user.last_name && (
+              <p className="pp-fullname">
+                {user.first_name} {user.last_name}
+              </p>
+            )}
+
+            {user.bio && (
+              <p className="pp-bio">
+                "{user.bio}"
+              </p>
+            )}
+          </div>
+
+          {/* СТАТИСТИКА */}
+          <div className="pp-mini-stats">
+            <div className="pp-mini-stats-grid">
+              <div>
+                <div className="pp-mini-number">{userStreams.length}</div>
+                <div className="pp-mini-label">Стримов</div>
+              </div>
+              <div>
+                <div className="pp-mini-number">{userStreams.filter(s => s.status === 'live').length}</div>
+                <div className="pp-mini-label">Онлайн</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ИНФО СТРОКА */}
+        <div className="pp-header-info">
+          {user.email && (
+            <div className="pp-header-info-item">
+              <span>📧</span>
+              <span>{user.email}</span>
+            </div>
+          )}
+
+          {(user.country || user.city) && (
+            <div className="pp-header-info-item">
+              <span>📍</span>
+              <span>{[user.city, user.country].filter(Boolean).join(', ')}</span>
+            </div>
+          )}
+
+          {user.created_at && (
+            <div className="pp-header-info-item">
+              <span>📅</span>
+              <span>Зарегистрирован: {formatDate(user.created_at)}</span>
+            </div>
+          )}
+
+          {user.website && (
+            <div className="pp-header-info-item">
+              <span>🌐</span>
+              <a 
+                href={user.website.startsWith('http') ? user.website : `https://${user.website}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="pp-link"
+                style={{ color: '#9147ff', textDecoration: 'none' }}
+              >
+                {user.website.replace(/^https?:\/\//, '')}
+              </a>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="pp-columns">
+        {/* ЛЕВАЯ КОЛОНКА - СТРИМЫ */}
+        <div>
+          <div className="pp-card streams-list" style={{ marginBottom: '20px' }}>
+            <h2 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              🎥 Стримы {user.username}
+              <span style={{
+                background: '#333',
+                color: '#adadb8',
+                padding: '2px 8px',
+                borderRadius: '12px',
+                fontSize: '12px'
+              }}>
+                {userStreams.length} всего
+              </span>
+            </h2>
+
+            {streamsLoading ? (
+              <div className="pp-empty">
+                <div style={{ fontSize: '24px', marginBottom: '10px' }}>🌀</div>
+                <div>Загрузка стримов...</div>
+              </div>
+            ) : userStreams.length === 0 ? (
+              <div className="pp-empty">
+                <div style={{ fontSize: '48px', marginBottom: '20px' }}>🎥</div>
+                <div style={{ fontSize: '18px', marginBottom: '10px' }}>Стримов пока нет</div>
+                <p>Этот пользователь еще не начал ни одного стрима</p>
+              </div>
+            ) : (
+              <div className="streams-wrapper">
+                {userStreams.map((stream) => (
+                  <div 
+                    key={stream.id}
+                    onClick={() => navigate(`/stream/${stream.id}`)}
+                    className="stream-item"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/stream/${stream.id}`) }}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '15px' }}>
+                      <div>
+                        <h3 style={{ margin: '0 0 8px 0', color: '#efeff1', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ fontSize: '20px' }}>{getStreamEmoji(stream.title)}</span>
+                          {stream.title || 'Без названия'}
+                        </h3>
+
+                        {stream.description && (
+                          <p style={{ margin: 0, color: '#adadb8', fontSize: '14px', lineHeight: '1.5' }}>
+                            {stream.description}
+                          </p>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px' }}>
+                        <span className="stream-status" style={{
+                          background: stream.status === 'live' ? '#e91916' : '#666',
+                          color: 'white',
+                          padding: '4px 12px',
+                          borderRadius: '20px',
+                          fontSize: '12px',
+                          fontWeight: 'bold'
+                        }}>
+                          {stream.status === 'live' ? '🔴 LIVE' : '⚫ OFFLINE'}
+                        </span>
+
+                        {stream.viewers_count > 0 && (
+                          <span style={{ color: '#adadb8', fontSize: '12px' }}>
+                            👁️ {stream.viewers_count} зрителей
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '15px', borderTop: '1px solid rgba(255,255,255,0.06)', fontSize: '12px', color: '#adadb8' }}>
+                      <div style={{ display: 'flex', gap: '15px' }}>
+                        {stream.started_at && (
+                          <span>🕐 Начало: {new Date(stream.started_at).toLocaleDateString('ru-RU')}</span>
+                        )}
+
+                        {stream.themes && stream.themes.length > 0 && (
+                          <span>🎯 {stream.themes.length} тематик</span>
+                        )}
+                      </div>
+
+                      <span className="pp-link" style={{ background: '#333', padding: '2px 8px', borderRadius: '4px' }}>
+                        Перейти к стриму →
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ИНФОРМАЦИЯ О ПОЛЬЗОВАТЕЛЕ */}
+          <div className="pp-card" style={{ marginBottom: '20px' }}>
+            <h2 style={{ marginBottom: '20px' }}>📝 О пользователе</h2>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+              {user.phone && (
+                <div className="pp-info-box">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
+                    <span style={{ fontSize: '20px' }}>📱</span>
+                    <strong style={{ color: '#efeff1' }}>Телефон</strong>
+                  </div>
+                  <div style={{ color: '#adadb8', fontSize: '14px' }}>{user.phone}</div>
+                </div>
+              )}
+
+              {user.date_of_birth && (
+                <div className="pp-info-box">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
+                    <span style={{ fontSize: '20px' }}>🎂</span>
+                    <strong style={{ color: '#efeff1' }}>Дата рождения</strong>
+                  </div>
+                  <div style={{ color: '#adadb8', fontSize: '14px' }}>
+                    {formatDate(user.date_of_birth)}
+                  </div>
+                </div>
+              )}
+
+              {(user.country || user.city) && (
+                <div className="pp-info-box">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
+                    <span style={{ fontSize: '20px' }}>📍</span>
+                    <strong style={{ color: '#efeff1' }}>Местоположение</strong>
+                  </div>
+                  <div style={{ color: '#adadb8', fontSize: '14px' }}>
+                    {[user.city, user.country].filter(Boolean).join(', ') || 'Не указано'}
+                  </div>
+                </div>
+              )}
+
+              {user.website && (
+                <div className="pp-info-box">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
+                    <span style={{ fontSize: '20px' }}>🌐</span>
+                    <strong style={{ color: '#efeff1' }}>Веб-сайт</strong>
+                  </div>
+                  <div style={{ color: '#adadb8', fontSize: '14px' }}>
+                    <a 
+                      href={user.website.startsWith('http') ? user.website : `https://${user.website}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: '#9147ff', textDecoration: 'none' }}
+                    >
+                      {user.website.replace(/^https?:\/\//, '')}
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ДОПОЛНИТЕЛЬНАЯ ИНФОРМАЦИЯ */}
+            <div style={{ marginTop: '25px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+              <h3 style={{ marginBottom: '15px', color: '#efeff1' }}>📊 Дополнительная информация</h3>
+              <div className="pp-extra-box">
+                <p style={{ margin: '0 0 10px 0' }}>
+                  <strong>Статус аккаунта:</strong> {user.is_active ? '✅ Активен' : '❌ Не активен'}
+                </p>
+                <p style={{ margin: '0 0 10px 0' }}>
+                  <strong>Подтверждение email:</strong> {user.is_verified ? '✅ Подтвержден' : '🟡 Не подтвержден'}
+                </p>
+                <p style={{ margin: 0 }}>
+                  <strong>Дата регистрации:</strong> {formatDate(user.created_at)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ПРАВАЯ КОЛОНКА - ДЕЙСТВИЯ */}
+        <div>
+          {/* КНОПКИ ДЕЙСТВИЙ */}
+          <div className="pp-card quick-actions" style={{ marginBottom: '20px' }}>
+            <h3 style={{ marginBottom: '15px' }}>⚡ Действия</h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <button
+                onClick={() => {
+                  // TODO: Реализовать подписку
+                  alert(`Подписка на ${user.username}`)
+                }}
+                className="pp-action-btn pp-action-subscribe"
+                style={{ background: '#9147ff', color: 'white', border: 'none', padding: '12px', borderRadius: '4px', cursor: 'pointer', textAlign: 'left', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}
+              >
+                <span style={{ fontSize: '16px' }}>➕</span>
+                Подписаться
+              </button>
+
+              <button
+                onClick={() => {
+                  // TODO: Реализовать сообщение
+                  alert(`Отправка сообщения ${user.username}`)
+                }}
+                className="pp-action-btn pp-action-message"
+                style={{ background: '#333', color: 'white', border: 'none', padding: '12px', borderRadius: '4px', cursor: 'pointer', textAlign: 'left', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}
+              >
+                <span style={{ fontSize: '16px' }}>💬</span>
+                Написать сообщение
+              </button>
+
+              <button
+                onClick={() => navigate(-1)}
+                className="pp-action-btn pp-action-back"
+                style={{ background: 'transparent', color: '#efeff1', border: '1px solid #333', padding: '12px', borderRadius: '4px', cursor: 'pointer', textAlign: 'left', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}
+              >
+                <span style={{ fontSize: '16px' }}>←</span>
+                Назад
+              </button>
+            </div>
+          </div>
+
+          {/* СТАТИСТИКА */}
+          <div className="pp-card profile-info-box" style={{ marginBottom: '20px' }}>
+            <h3 style={{ marginBottom: '15px' }}>📊 Статистика</h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                  <span style={{ color: '#adadb8', fontSize: '14px' }}>Всего стримов</span>
+                  <span style={{ color: 'white', fontWeight: 'bold' }}>{userStreams.length}</span>
+                </div>
+                <div style={{ height: '4px', background: '#333', borderRadius: '2px', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: '100%', background: '#9147ff', borderRadius: '2px' }}/>
+                </div>
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                  <span style={{ color: '#adadb8', fontSize: '14px' }}>Активных стримов</span>
+                  <span style={{ color: 'white', fontWeight: 'bold' }}>
+                    {userStreams.filter(s => s.status === 'live').length}
+                  </span>
+                </div>
+                <div style={{ height: '4px', background: '#333', borderRadius: '2px', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${(userStreams.filter(s => s.status === 'live').length / Math.max(userStreams.length, 1)) * 100}%`, background: '#e91916', borderRadius: '2px' }}/>
+                </div>
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                  <span style={{ color: '#adadb8', fontSize: '14px' }}>Всего зрителей</span>
+                  <span style={{ color: 'white', fontWeight: 'bold' }}>
+                    {userStreams.reduce((sum, stream) => sum + (stream.viewers_count || 0), 0)}
+                  </span>
+                </div>
+                <div style={{ height: '4px', background: '#333', borderRadius: '2px', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: '100%', background: '#00ff7f', borderRadius: '2px' }}/>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* КОНТАКТЫ */}
+          <div className="pp-card" style={{ marginBottom: '0' }}>
+            <h3 style={{ marginBottom: '15px' }}>📞 Контакты</h3>
+
+            <div className="pp-contact-box">
+              {user.email && (
+                <div style={{ marginBottom: '10px' }}>
+                  <div style={{ color: '#adadb8', fontSize: '12px', marginBottom: '5px' }}>Email</div>
+                  <div style={{ color: '#efeff1', fontSize: '14px', wordBreak: 'break-all' }}>
+                    {user.email}
+                  </div>
+                </div>
+              )}
+
+              {user.phone && (
+                <div style={{ marginBottom: '10px' }}>
+                  <div style={{ color: '#adadb8', fontSize: '12px', marginBottom: '5px' }}>Телефон</div>
+                  <div style={{ color: '#efeff1', fontSize: '14px' }}>
+                    {user.phone}
+                  </div>
+                </div>
+              )}
+
+              {user.website && (
+                <div>
+                  <div style={{ color: '#adadb8', fontSize: '12px', marginBottom: '5px' }}>Веб-сайт</div>
+                  <div style={{ color: '#efeff1', fontSize: '14px' }}>
+                    <a 
+                      href={user.website.startsWith('http') ? user.website : `https://${user.website}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: '#9147ff', textDecoration: 'none' }}
+                    >
+                      {user.website.replace(/^https?:\/\//, '')}
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {!user.email && !user.phone && !user.website && (
+                <div style={{ textAlign: 'center', color: '#adadb8', padding: '10px' }}>
+                  Контакты не указаны
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default PublicProfile

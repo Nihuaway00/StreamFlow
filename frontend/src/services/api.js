@@ -1,9 +1,7 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL;
-
 const api = axios.create({
-  baseURL: `${API_BASE_URL}/api`,
+  baseURL: '/api', // просто /api
 });
 
 // Интерцептор для добавления токена
@@ -18,18 +16,72 @@ api.interceptors.request.use((config) => {
 // Интерцептор для обработки ошибок авторизации
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Очищаем токен и перенаправляем на страницу входа
+  async (error) => {
+    const originalRequest = error.config;
+    const url = originalRequest.url || '';
+    
+    console.log('❌ Interceptor caught error:', {
+      url: url,
+      status: error.response?.status,
+      method: originalRequest.method
+    });
+    
+    // НЕ ОБРАБАТЫВАЕМ ошибки этих endpoints:
+    const ignoreEndpoints = [
+      '/auth/login',
+      '/auth/register', 
+      '/auth/refresh',
+      '/auth/logout'
+    ];
+    
+    if (ignoreEndpoints.some(ep => url.includes(ep))) {
+      return Promise.reject(error);
+    }
+    
+    // Только для 401 ошибок (не авторизован)
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      console.log('🔐 401 error detected, trying refresh...');
+      originalRequest._retry = true;
+      
+      try {
+        const refreshToken = localStorage.getItem('refresh_token');
+        if (refreshToken) {
+          console.log('🔄 Attempting token refresh...');
+          const response = await api.post('/auth/refresh', {
+            refresh_token: refreshToken
+          });
+          
+          const { access_token, refresh_token } = response.data;
+          console.log('✅ Tokens refreshed successfully');
+          
+          localStorage.setItem('access_token', access_token);
+          localStorage.setItem('refresh_token', refresh_token);
+          
+          originalRequest.headers.Authorization = `Bearer ${access_token}`;
+          return api(originalRequest);
+        }
+      } catch (refreshError) {
+        console.log('❌ Refresh token failed:', refreshError);
+      }
+      
+      // Если refresh не сработал - SOFT logout (без редиректа)
+      console.log('⚠️ Soft logout (clearing tokens but staying on page)');
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
       localStorage.removeItem('user');
       
-      // Перенаправляем на страницу логина
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
+      // НЕ редиректим сразу! Пусть компонент сам решит что делать
+      // if (window.location.pathname !== '/login') {
+      //   window.location.href = '/login';
+      // }
+      
+      // Просто отклоняем ошибку
+      return Promise.reject({
+        ...error,
+        isAuthError: true // Добавляем флаг
+      });
     }
+    
     return Promise.reject(error);
   }
 );
@@ -61,6 +113,30 @@ export const streamAPI = {
 // Функция для проверки авторизации
 export const isAuthenticated = () => {
   return !!localStorage.getItem('access_token');
+};
+
+export const chatAPI = {
+  // Получить сообщения чата: POST с query params, body пустой
+  getChatMessages: (chatId, params = {}) => 
+    api.post(`/chats/${chatId}/messages`, null, { 
+      params: {
+        page: params.page || 1,
+        limit: params.limit || 20,
+        sort: params.sort || 'desc'
+      }
+    }),
+  
+  // Отправить сообщение: POST с content в body
+  sendMessage: (chatId, content) => 
+    api.post(`/chats/${chatId}/messages`, {
+      content: content
+      // author_id бэкенд возьмет из токена
+    }).then(response => {
+      // ВАЖНО: возвращаем данные сообщения, а не весь response
+      return response.data;
+    }),
+  // Получить список чатов пользователя
+  getUserChats: () => api.get('/chats'),
 };
 
 // Функция для получения текущего пользователя (из localStorage)
