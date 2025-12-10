@@ -2,23 +2,27 @@ from datetime import datetime
 from typing import Optional
 
 import math
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form
+from pydantic.json_schema import SkipJsonSchema
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import settings
+from app.core.storage.service import StorageService
 from app.database import get_db
+from app.dependencies.storage import get_storage
 from app.dependencies.streams import get_stream_service
 from app.models import Theme, StreamTheme, Chat
 from app.models.stream import Stream
 from app.models.user import User
 from app.schemas import ChatResponse
 from app.schemas.streams import (
-    StreamCreate, StreamCreateResponse, StreamListResponse,
-    StreamDetail, StreamPublic, StreamAuthor, StreamEdit
+    StreamCreateResponse, StreamListResponse,
+    StreamDetail, StreamPublic, StreamAuthor
 )
-from app.services.streams import StreamService
+from app.services.streams.streams import StreamService
+from app.services.streams.streams import upload_preview
 from app.utils.security import get_current_user, generate_stream_key
 
 router = APIRouter()
@@ -26,37 +30,46 @@ router = APIRouter()
 
 @router.post("", response_model=StreamCreateResponse, status_code=status.HTTP_201_CREATED)
 async def create_stream(
-        stream_data: StreamCreate,
+        title: str = Form(...),
+        description: Optional[str] = Form(None),
+        theme_ids: Optional[str] = Form("1,2,3", description="Строка из id тем, разделенных запятой"),
+        preview: UploadFile | SkipJsonSchema[None] = File(None),
         current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
+        storage: StorageService = Depends(get_storage)
 ):
     stream_key = generate_stream_key()
 
+    preview_key = None
+    if preview:
+        preview_key = upload_preview(storage, preview.file, preview.filename)
+
     new_stream = Stream(
         user_id=current_user.id,
-        title=stream_data.title,
-        description=stream_data.description,
+        title=title,
+        description=description,
+        preview_key=preview_key,
         stream_key=stream_key,
         status="offline",
         is_deleted=False
     )
 
-    if stream_data.theme_ids:
-        theme_ids = stream_data.theme_ids
+    if theme_ids:
+        theme_ids_list = [int(x) for x in theme_ids.split(',')]
         result = await db.execute(
-            select(Theme.id).where(Theme.id.in_(theme_ids))
+            select(Theme.id).where(Theme.id.in_(theme_ids_list))
         )
         existing_ids = set(result.scalars().all())
 
         # Проверка
-        missing = set(theme_ids) - existing_ids
+        missing = set(theme_ids_list) - existing_ids
         if missing:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"Themes with ids {list(missing)} not found"
             )
 
-        for theme_id in theme_ids:
+        for theme_id in theme_ids_list:
             db.add(StreamTheme(stream_id=new_stream.id, theme_id=theme_id))
 
     db.add(new_stream)
@@ -76,6 +89,10 @@ async def create_stream(
     rtmp_url = f"rtmp://{settings.RTMP_SERVER_HOST}:{settings.RTMP_PORT}/live"
     hls_url = f"{settings.HLS_BASE_URL}/live/{stream_key}/index.m3u8"
 
+    preview_url = None
+    if new_stream.preview_key:
+        preview_url = f"{new_stream.preview_key}"
+
     return StreamCreateResponse(
         id=new_stream.id,
         title=new_stream.title,
@@ -84,6 +101,7 @@ async def create_stream(
         stream_key=stream_key,
         rtmp_url=rtmp_url,
         hls_url=hls_url,
+        preview_url=preview_url,
         created_at=new_stream.created_at,
         chat=ChatResponse(id=new_chat.id)
     )
@@ -128,6 +146,7 @@ async def get_streams(
             description=s.description,
             status=s.status,
             viewers_count=s.viewers_count,
+            preview_url=s.preview_key if s.preview_key else None,
             started_at=s.started_at,
             author=StreamAuthor(id=s.author.id, username=s.author.username),
             themes=[th.id for th in s.themes],
@@ -169,6 +188,7 @@ async def get_my_streams(
             description=s.description,
             status=s.status,
             viewers_count=s.viewers_count,
+            preview_url=s.preview_key if s.preview_key else None,
             started_at=s.started_at,
             author=StreamAuthor(id=s.author.id, username=s.author.username),
             themes=[th.id for th in s.themes],
@@ -211,6 +231,7 @@ async def get_stream(stream_id: str, db: AsyncSession = Depends(get_db)):
         description=stream.description,
         status=stream.status,
         viewers_count=stream.viewers_count,
+        preview_url=stream.preview_key if stream.preview_key else None,
         hls_url=hls_url,
         started_at=stream.started_at,
         author=StreamAuthor(id=stream.author.id, username=stream.author.username),
@@ -226,12 +247,27 @@ async def get_stream(stream_id: str, db: AsyncSession = Depends(get_db)):
 @router.patch("/{stream_id}", response_model=StreamDetail)
 async def edit_stream(
         stream_id: str,
-        new_data: StreamEdit,
+        title: Optional[str] = Form(None),
+        description: Optional[str] = Form(None),
+        theme_ids: Optional[str] = Form("1,2,3", description="Строка из id тем, разделенных запятой"),
+        preview: UploadFile | SkipJsonSchema[None] = File(None),
+        remove_preview: bool = Form(False),
         current_user: User = Depends(get_current_user),
-        service: StreamService = Depends(get_stream_service)
+        service: StreamService = Depends(get_stream_service),
+        storage: StorageService = Depends(get_storage)
 ):
-    update_data = new_data.model_dump(exclude_unset=True)
-    return await service.edit_stream(stream_id, update_data, current_user)
+    update_data = {}
+    if title is not None:
+        update_data['title'] = title
+    if description is not None:
+        update_data['description'] = description
+    if theme_ids is not None:
+        update_data['theme_ids'] = [int(x) for x in theme_ids.split(',')]
+
+    update_data['remove_preview'] = remove_preview
+    update_data['preview_file'] = preview
+
+    return await service.edit_stream(stream_id, update_data, current_user, storage)
 
 
 @router.delete("/{stream_id}")

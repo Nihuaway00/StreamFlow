@@ -10,13 +10,15 @@ from app.config import settings
 from app.models import User, Stream, StreamTheme, Theme
 from app.schemas import StreamDetail, ChatResponse
 from app.schemas.streams import StreamAuthor
+from app.core.storage.service import StorageService
+from app.services.streams.preview import upload_preview
 
 
 class StreamService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def edit_stream(self, stream_id: str, update_data: dict[str, any], current_user: User):
+    async def edit_stream(self, stream_id: str, update_data: dict[str, any], current_user: User, storage: StorageService):
         query = (select(Stream)
                  .options(selectinload(Stream.author))
                  .options(selectinload(Stream.chat))
@@ -42,8 +44,17 @@ class StreamService:
                 detail="This stream is deleted"
             )
 
+        # Handle preview removal
+        if update_data.get("remove_preview", False):
+            stream.preview_key = None
 
-        if update_data["theme_ids"] is not None:
+        # Handle preview upload
+        preview_file = update_data.pop("preview_file", None)
+        if preview_file:
+            preview_key = upload_preview(storage, preview_file.file, preview_file.filename)
+            stream.preview_key = preview_key
+
+        if "theme_ids" in update_data and update_data["theme_ids"] is not None:
             theme_ids = set(update_data["theme_ids"])
             result = await self.db.execute(
                 select(Theme.id).where(Theme.id.in_(theme_ids))
@@ -65,8 +76,10 @@ class StreamService:
             for theme_id in theme_ids:
                 self.db.add(StreamTheme(stream_id=stream.id, theme_id=theme_id))
 
+        # Update other fields
         for field, value in update_data.items():
-            setattr(stream, field, value)
+            if field not in ["theme_ids", "remove_preview", "preview_file"]:
+                setattr(stream, field, value)
 
         hls_url = f"rtmp://{settings.RTMP_SERVER_HOST}:{settings.RTMP_PORT}/live"
 
@@ -78,6 +91,7 @@ class StreamService:
             description=stream.description,
             status=stream.status,
             viewers_count=stream.viewers_count,
+            preview_url=stream.preview_key if stream.preview_key else None,
             hls_url=hls_url,
             started_at=stream.started_at,
             author=StreamAuthor(id=stream.author.id, username=stream.author.username),

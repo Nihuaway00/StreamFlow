@@ -16,6 +16,7 @@ class StreamEdit(BaseModel):
     title: str | None = None
     description: str | None = None
     theme_ids: Optional[list[int]] = None
+    remove_preview: bool = False
 
 
 class StreamAuthor(BaseModel):
@@ -33,6 +34,7 @@ class StreamCreateResponse(BaseModel):
     stream_key: str
     rtmp_url: str
     hls_url: Optional[str]
+    preview_url: Optional[str] = None
     created_at: datetime
     chat: ChatResponse
 
@@ -46,6 +48,7 @@ class StreamPublic(BaseModel):
     started_at: Optional[datetime]
     status: str
     viewers_count: int
+    preview_url: Optional[str] = None
     author: StreamAuthor
     themes: list[int] = []
     chat: ChatResponse

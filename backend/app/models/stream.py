@@ -19,6 +19,7 @@ class Stream(Base):
 
     title = Column(String(255), nullable=False)
     description = Column(Text)
+    preview_key = Column(String(255), nullable=True)
 
     # RTMP credentials
     stream_key = Column(String(64), unique=True, nullable=False, index=True)
