@@ -1,7 +1,7 @@
 import React, { useMemo } from "react"
 import { Link } from "react-router-dom"
 import veschanieBackground from "../../veschanie.png"
-import "./home.css"
+import "./Home.css"
 
 const HomePage = ({ streams = [], liveStreams = [], loading = false }) => {
   // Формируем отсортированный список: сначала live, затем остальные (без дубликатов)
