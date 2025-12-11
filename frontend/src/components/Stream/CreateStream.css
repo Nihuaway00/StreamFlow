@@ -1,0 +1,182 @@
+/* Фон страницы */
+.cs-page {
+  min-height: 100vh;
+  padding: 50px 0;
+  background: linear-gradient(
+    140deg,
+    #ffe0fc,
+    #c8e7ff,
+    #bdfcd6,
+    #ffddc8
+  );
+  background-size: 200% 200%;
+  animation: csGradient 10s ease infinite;
+  font-family: "Inter", sans-serif;
+}
+
+/* Анимация градиента */
+@keyframes csGradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Заголовок */
+.cs-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.cs-header h1 {
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: #000;
+}
+
+.cs-header p {
+  font-size: 16px;
+  opacity: 0.7;
+}
+
+/* Сетка */
+.cs-grid {
+  width: 90%;
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 30px;
+}
+
+/* Карточки */
+.cs-card {
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(18px);
+  border-radius: 14px;
+  padding: 25px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+}
+
+/* Название блока */
+.cs-card-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+/* Поля */
+.cs-field {
+  margin-bottom: 20px;
+}
+
+.cs-field label {
+  display: block;
+  font-size: 14px;
+  opacity: 0.7;
+  margin-bottom: 8px;
+}
+
+.cs-field input,
+.cs-field textarea {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(10px);
+  font-size: 14px;
+}
+
+.cs-field textarea {
+  height: 90px;
+  resize: none;
+}
+
+/* Чекбоксы */
+.cs-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 5px 0;
+}
+
+/* Зеленое окно "Стрим создан" */
+.cs-success {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(0, 255, 170, 0.2);
+  border: 1px solid rgba(0, 255, 170, 0.35);
+}
+
+.cs-success-info {
+  opacity: 0.7;
+  margin-top: 5px;
+}
+
+/* Кнопка */
+.cs-button {
+  width: 100%;
+  padding: 14px;
+  margin-top: 10px;
+  font-size: 18px;
+  border-radius: 25px;
+  background: black;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.cs-button:hover {
+  transform: translateY(-2px);
+}
+
+/* Поле + кнопка "копировать" */
+.cs-input-copy {
+  display: flex;
+  gap: 10px;
+}
+
+.cs-input-copy input {
+  flex: 1;
+}
+
+.cs-input-copy button {
+  padding: 12px 18px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #ccc;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.cs-input-copy button:hover {
+  background: #eee;
+}
+
+/* Блок инструкций */
+.cs-instruction {
+  margin-top: 15px;
+  padding: 15px;
+  background: rgba(240, 240, 240, 0.55);
+  border-radius: 12px;
+}
+
+.cs-instruction h3 {
+  margin-bottom: 10px;
+}
+
+.cs-instruction ol {
+  padding-left: 20px;
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+/* Адаптив */
+@media (max-width: 900px) {
+  .cs-grid {
+    grid-template-columns: 1fr;
+  }
+}

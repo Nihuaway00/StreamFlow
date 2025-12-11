@@ -13,6 +13,144 @@ const PublicProfile = () => {
   const [userStreams, setUserStreams] = useState([])
   const [streamsLoading, setStreamsLoading] = useState(true)
   const [avatarUrl, setAvatarUrl] = useState(null)
+  const [streamPreviews, setStreamPreviews] = useState({}) // Для хранения превью стримов
+
+  // Функция для извлечения file_key
+  const extractFileKey = (url) => {
+    if (!url) return null
+    if (!url.includes('://') && !url.startsWith('/')) {
+      return url
+    }
+    try {
+      if (url.startsWith('/')) {
+        return url.substring(1)
+      }
+      const urlObj = new URL(url)
+      return urlObj.pathname.substring(1)
+    } catch {
+      return url
+    }
+  }
+
+  // Функция для получения URL превью стрима
+  const getStreamPreviewUrl = async (previewUrl) => {
+    if (!previewUrl) {
+      console.log('❌ previewUrl пустой')
+      return null
+    }
+    
+    try {
+      const fileKey = extractFileKey(previewUrl)
+      if (!fileKey) {
+        console.log('❌ Не удалось извлечь file_key из превью')
+        return null
+      }
+      
+      const response = await api.post('/files/', null, {
+        params: { file_key: fileKey }
+      })
+      
+      let signedUrl = response.data
+      if (signedUrl.includes('storage:9000')) {
+        signedUrl = signedUrl.replace('storage:9000', 'localhost:9000')
+      }
+      
+      console.log('✅ URL превью получен:', signedUrl)
+      return signedUrl
+      
+    } catch (error) {
+      console.error('❌ Ошибка получения URL превью:', error)
+      return null
+    }
+  }
+
+  // Компонент превью стрима
+  const StreamPreview = ({ previewUrl, title, style }) => {
+    const [imgUrl, setImgUrl] = useState(null)
+    const [loading, setLoading] = useState(false)
+
+    useEffect(() => {
+      const loadPreview = async () => {
+        if (!previewUrl) {
+          setImgUrl('/no-preview.jpg')
+          setLoading(false)
+          return
+        }
+        
+        try {
+          setLoading(true)
+          const url = await getStreamPreviewUrl(previewUrl)
+          setImgUrl(url)
+        } catch (error) {
+          console.error('Ошибка загрузки превью стрима:', error)
+          setImgUrl('/no-preview.jpg')
+        } finally {
+          setLoading(false)
+        }
+      }
+      
+      loadPreview()
+    }, [previewUrl])
+
+    if (loading) {
+      return (
+        <div style={{
+          ...style,
+          background: '#111',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#666',
+          borderRadius: '8px'
+        }}>
+          ⏳
+        </div>
+      )
+    }
+
+    if (imgUrl) {
+      return (
+        <img 
+          src={imgUrl} 
+          alt={title || "Превью стрима"}
+          style={{
+            ...style,
+            borderRadius: '8px',
+            objectFit: 'cover'
+          }}
+          onError={(e) => {
+            console.error('❌ Ошибка загрузки изображения превью')
+            e.target.onerror = null
+            e.target.src = '/no-preview.jpg'
+          }}
+        />
+      )
+    }
+
+    return (
+      <img 
+        src="/no-preview.jpg"
+        alt="Нет превью"
+        style={{
+          ...style,
+          borderRadius: '8px',
+          objectFit: 'cover'
+        }}
+      />
+    )
+  }
+
+  // Функция для получения эмодзи стрима
+  const getStreamEmoji = (title) => {
+    if (!title) return '🎥'
+    const lowerTitle = title.toLowerCase()
+    if (lowerTitle.includes('музыка') || lowerTitle.includes('трек')) return '🎵'
+    if (lowerTitle.includes('игра') || lowerTitle.includes('cs2')) return '🎮'
+    if (lowerTitle.includes('dota') || lowerTitle.includes('дота')) return '⚔️'
+    if (lowerTitle.includes('общение') || lowerTitle.includes('chat')) return '💬'
+    if (lowerTitle.includes('рисование') || lowerTitle.includes('арт')) return '🎨'
+    return '🎥'
+  }
 
   // Загрузка данных пользователя
   useEffect(() => {
@@ -104,20 +242,6 @@ const PublicProfile = () => {
     try {
       console.log('🔄 Загрузка аватара:', avatarUrl)
 
-      // Извлекаем file_key из avatar_url
-      const extractFileKey = (url) => {
-        if (!url) return null
-        if (!url.includes('://') && !url.includes('/')) {
-          return url
-        }
-        try {
-          const urlObj = new URL(url)
-          return urlObj.pathname.substring(1)
-        } catch {
-          return url
-        }
-      }
-
       const fileKey = extractFileKey(avatarUrl)
       if (!fileKey) return
 
@@ -137,18 +261,6 @@ const PublicProfile = () => {
     } catch (error) {
       console.error('Ошибка загрузки аватара:', error)
     }
-  }
-
-  // Функция для получения эмодзи стрима
-  const getStreamEmoji = (title) => {
-    if (!title) return '🎥'
-    const lowerTitle = title.toLowerCase()
-    if (lowerTitle.includes('музыка') || lowerTitle.includes('трек')) return '🎵'
-    if (lowerTitle.includes('игра') || lowerTitle.includes('cs2')) return '🎮'
-    if (lowerTitle.includes('dota') || lowerTitle.includes('дота')) return '⚔️'
-    if (lowerTitle.includes('общение') || lowerTitle.includes('chat')) return '💬'
-    if (lowerTitle.includes('рисование') || lowerTitle.includes('арт')) return '🎨'
-    return '🎥'
   }
 
   // Форматирование даты
@@ -200,11 +312,9 @@ const PublicProfile = () => {
 
   return (
     <div className="public-profile">
-
       {/* ШАПКА ПРОФИЛЯ */}
       <div className="pp-card">
         <div className="pp-header-gradient" />
-
         <div className="pp-header-inner">
           {/* АВАТАР */}
           <div className="pp-avatar">
@@ -228,7 +338,6 @@ const PublicProfile = () => {
           <div className="pp-user-info">
             <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '10px' }}>
               <h1 className="pp-username">{user.username}</h1>
-
               {user.is_verified && (
                 <span className="pp-verified">✅ Подтвержден</span>
               )}
@@ -342,54 +451,121 @@ const PublicProfile = () => {
                     onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/stream/${stream.id}`) }}
                     style={{ cursor: 'pointer' }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '15px' }}>
-                      <div>
-                        <h3 style={{ margin: '0 0 8px 0', color: '#efeff1', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <span style={{ fontSize: '20px' }}>{getStreamEmoji(stream.title)}</span>
-                          {stream.title || 'Без названия'}
-                        </h3>
-
-                        {stream.description && (
-                          <p style={{ margin: 0, color: '#adadb8', fontSize: '14px', lineHeight: '1.5' }}>
-                            {stream.description}
-                          </p>
-                        )}
+                    {/* ПРЕВЬЮ СТРИМА */}
+                    <div style={{ 
+                      width: '100%', 
+                      height: '180px', 
+                      borderRadius: '8px', 
+                      overflow: 'hidden', 
+                      marginBottom: '15px',
+                      position: 'relative'
+                    }}>
+                      <StreamPreview 
+                        previewUrl={stream.preview_url}
+                        title={stream.title}
+                        style={{ width: '100%', height: '100%' }}
+                      />
+                      
+                      {/* БЕЙДЖ СТАТУСА НАД ПРЕВЬЮ */}
+                      <div style={{
+                        position: 'absolute',
+                        top: '10px',
+                        left: '10px',
+                        background: stream.status === 'live' ? '#e91916' : '#333',
+                        color: 'white',
+                        padding: '4px 12px',
+                        borderRadius: '20px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px'
+                      }}>
+                        {stream.status === 'live' ? '🔴 LIVE' : '⚫ OFFLINE'}
                       </div>
-
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px' }}>
-                        <span className="stream-status" style={{
-                          background: stream.status === 'live' ? '#e91916' : '#666',
+                      
+                      {/* КОЛИЧЕСТВО ЗРИТЕЛЕЙ */}
+                      {stream.viewers_count > 0 && (
+                        <div style={{
+                          position: 'absolute',
+                          bottom: '10px',
+                          left: '10px',
+                          background: 'rgba(0, 0, 0, 0.7)',
                           color: 'white',
-                          padding: '4px 12px',
-                          borderRadius: '20px',
+                          padding: '4px 10px',
+                          borderRadius: '4px',
                           fontSize: '12px',
-                          fontWeight: 'bold'
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px'
                         }}>
-                          {stream.status === 'live' ? '🔴 LIVE' : '⚫ OFFLINE'}
-                        </span>
-
-                        {stream.viewers_count > 0 && (
-                          <span style={{ color: '#adadb8', fontSize: '12px' }}>
-                            👁️ {stream.viewers_count} зрителей
-                          </span>
-                        )}
-                      </div>
+                          👁️ {stream.viewers_count}
+                        </div>
+                      )}
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '15px', borderTop: '1px solid rgba(255,255,255,0.06)', fontSize: '12px', color: '#adadb8' }}>
-                      <div style={{ display: 'flex', gap: '15px' }}>
-                        {stream.started_at && (
-                          <span>🕐 Начало: {new Date(stream.started_at).toLocaleDateString('ru-RU')}</span>
-                        )}
+                    {/* ИНФОРМАЦИЯ О СТРИМЕ */}
+                    <div>
+                      <h3 style={{ 
+                        margin: '0 0 8px 0', 
+                        color: '#efeff1', 
+                        fontSize: '18px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px'
+                      }}>
+                        <span style={{ fontSize: '20px' }}>{getStreamEmoji(stream.title)}</span>
+                        {stream.title || 'Без названия'}
+                      </h3>
 
-                        {stream.themes && stream.themes.length > 0 && (
-                          <span>🎯 {stream.themes.length} тематик</span>
-                        )}
+                      {stream.description && (
+                        <p style={{ 
+                          margin: '0 0 15px 0', 
+                          color: '#adadb8', 
+                          fontSize: '14px', 
+                          lineHeight: '1.5',
+                          maxHeight: '60px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical'
+                        }}>
+                          {stream.description}
+                        </p>
+                      )}
+
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        paddingTop: '15px', 
+                        borderTop: '1px solid rgba(255,255,255,0.06)', 
+                        fontSize: '12px', 
+                        color: '#adadb8' 
+                      }}>
+                        <div style={{ display: 'flex', gap: '15px' }}>
+                          {stream.started_at && (
+                            <span>🕐 {new Date(stream.started_at).toLocaleDateString('ru-RU')}</span>
+                          )}
+
+                          {stream.themes && stream.themes.length > 0 && (
+                            <span>🎯 {stream.themes.length} тематик</span>
+                          )}
+                        </div>
+
+                        <span className="pp-link" style={{ 
+                          background: '#333', 
+                          padding: '5px 12px', 
+                          borderRadius: '4px',
+                          transition: 'all 0.2s',
+                          ':hover': {
+                            background: '#444'
+                          }
+                        }}>
+                          Смотреть →
+                        </span>
                       </div>
-
-                      <span className="pp-link" style={{ background: '#333', padding: '2px 8px', borderRadius: '4px' }}>
-                        Перейти к стриму →
-                      </span>
                     </div>
                   </div>
                 ))}
@@ -400,7 +576,6 @@ const PublicProfile = () => {
           {/* ИНФОРМАЦИЯ О ПОЛЬЗОВАТЕЛЕ */}
           <div className="pp-card" style={{ marginBottom: '20px' }}>
             <h2 style={{ marginBottom: '20px' }}>📝 О пользователе</h2>
-
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
               {user.phone && (
                 <div className="pp-info-box">
@@ -479,7 +654,6 @@ const PublicProfile = () => {
           {/* КНОПКИ ДЕЙСТВИЙ */}
           <div className="pp-card quick-actions" style={{ marginBottom: '20px' }}>
             <h3 style={{ marginBottom: '15px' }}>⚡ Действия</h3>
-
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <button
                 onClick={() => {
@@ -519,7 +693,6 @@ const PublicProfile = () => {
           {/* СТАТИСТИКА */}
           <div className="pp-card profile-info-box" style={{ marginBottom: '20px' }}>
             <h3 style={{ marginBottom: '15px' }}>📊 Статистика</h3>
-
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
@@ -539,7 +712,12 @@ const PublicProfile = () => {
                   </span>
                 </div>
                 <div style={{ height: '4px', background: '#333', borderRadius: '2px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${(userStreams.filter(s => s.status === 'live').length / Math.max(userStreams.length, 1)) * 100}%`, background: '#e91916', borderRadius: '2px' }}/>
+                  <div style={{ 
+                    height: '100%', 
+                    width: `${(userStreams.filter(s => s.status === 'live').length / Math.max(userStreams.length, 1)) * 100}%`, 
+                    background: '#e91916', 
+                    borderRadius: '2px' 
+                  }}/>
                 </div>
               </div>
 
@@ -560,7 +738,6 @@ const PublicProfile = () => {
           {/* КОНТАКТЫ */}
           <div className="pp-card" style={{ marginBottom: '0' }}>
             <h3 style={{ marginBottom: '15px' }}>📞 Контакты</h3>
-
             <div className="pp-contact-box">
               {user.email && (
                 <div style={{ marginBottom: '10px' }}>
