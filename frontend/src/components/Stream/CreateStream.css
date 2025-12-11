@@ -1,182 +1,153 @@
-/* Фон страницы */
-.cs-page {
-  min-height: 100vh;
-  padding: 50px 0;
-  background: linear-gradient(
-    140deg,
-    #ffe0fc,
-    #c8e7ff,
-    #bdfcd6,
-    #ffddc8
-  );
-  background-size: 200% 200%;
-  animation: csGradient 10s ease infinite;
-  font-family: "Inter", sans-serif;
-}
+/* ============== ОБЩИЙ ФОН СТРАНИЦЫ (градиент как в макете) ============== */
 
-/* Анимация градиента */
-@keyframes csGradient {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-/* Заголовок */
-.cs-header {
-  text-align: center;
-  margin-bottom: 40px;
-}
-
-.cs-header h1 {
-  font-size: 32px;
-  font-weight: 700;
-  margin-bottom: 10px;
-  color: #000;
-}
-
-.cs-header p {
-  font-size: 16px;
-  opacity: 0.7;
-}
-
-/* Сетка */
-.cs-grid {
-  width: 90%;
-  max-width: 1200px;
-  margin: 0 auto;
+.stream-page {
+  height: 100vh;
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 30px;
+  grid-template-columns: 1fr 400px;
+  overflow: hidden;
+
+  background: radial-gradient(
+        circle at 20% 20%,
+        rgba(255, 0, 204, 0.25) 0%,
+        rgba(0, 255, 255, 0.2) 25%,
+        rgba(0, 0, 0, 0.95) 70%
+      ),
+      linear-gradient(
+        135deg,
+        rgba(0, 255, 204, 0.2),
+        rgba(255, 0, 0, 0.2) 40%,
+        rgba(100, 0, 255, 0.2) 80%
+      );
+  background-blend-mode: screen;
 }
 
-/* Карточки */
-.cs-card {
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(18px);
-  border-radius: 14px;
-  padding: 25px;
-  border: 1px solid rgba(255, 255, 255, 0.7);
-}
+/* ============== ЛЕВАЯ КОЛОНКА: ПЛЕЕР + ИНФО ============== */
 
-/* Название блока */
-.cs-card-title {
-  font-size: 20px;
-  font-weight: 600;
-  margin-bottom: 20px;
-}
-
-/* Поля */
-.cs-field {
-  margin-bottom: 20px;
-}
-
-.cs-field label {
-  display: block;
-  font-size: 14px;
-  opacity: 0.7;
-  margin-bottom: 8px;
-}
-
-.cs-field input,
-.cs-field textarea {
-  width: 100%;
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid #ddd;
-  background: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(10px);
-  font-size: 14px;
-}
-
-.cs-field textarea {
-  height: 90px;
-  resize: none;
-}
-
-/* Чекбоксы */
-.cs-checkbox {
+.stream-left {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 5px 0;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-/* Зеленое окно "Стрим создан" */
-.cs-success {
-  margin-top: 12px;
-  padding: 12px;
-  border-radius: 10px;
-  background: rgba(0, 255, 170, 0.2);
-  border: 1px solid rgba(0, 255, 170, 0.35);
-}
-
-.cs-success-info {
-  opacity: 0.7;
-  margin-top: 5px;
-}
-
-/* Кнопка */
-.cs-button {
-  width: 100%;
-  padding: 14px;
-  margin-top: 10px;
-  font-size: 18px;
-  border-radius: 25px;
+.stream-player-wrapper {
+  height: 60vh;
+  min-height: 400px;
   background: black;
-  color: white;
-  border: none;
-  cursor: pointer;
-  transition: 0.2s;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  overflow: hidden;
 }
 
-.cs-button:hover {
-  transform: translateY(-2px);
+/* Нижняя часть — инфоблок */
+.stream-info {
+  padding: 20px;
+  overflow-y: auto;
+  position: relative;
+  color: #fff;
 }
 
-/* Поле + кнопка "копировать" */
-.cs-input-copy {
+/* ============== КНОПКА УПРАВЛЕНИЯ ============== */
+
+.stream-owner-settings {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 10;
+}
+
+/* ============== ТИТУЛЬНЫЙ БЛОК СТРИМА ============== */
+
+.stream-status {
+  margin-bottom: 15px;
+}
+
+.stream-title {
+  margin: 0 0 15px 0;
+  font-size: 24px;
+  line-height: 1.3;
+}
+
+.stream-description {
+  color: #adadb8;
+  margin-bottom: 20px;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* Темы */
+.stream-themes {
+  margin-bottom: 15px;
+}
+
+/* ============== СТАТИСТИКА ============== */
+
+.stream-stats-box {
   display: flex;
-  gap: 10px;
-}
-
-.cs-input-copy input {
-  flex: 1;
-}
-
-.cs-input-copy button {
-  padding: 12px 18px;
-  border-radius: 10px;
-  background: #fff;
-  border: 1px solid #ccc;
-  cursor: pointer;
-  transition: 0.2s;
-}
-
-.cs-input-copy button:hover {
-  background: #eee;
-}
-
-/* Блок инструкций */
-.cs-instruction {
-  margin-top: 15px;
+  gap: 25px;
+  color: #adadb8;
+  flex-wrap: wrap;
+  margin-bottom: 25px;
   padding: 15px;
-  background: rgba(240, 240, 240, 0.55);
-  border-radius: 12px;
+  background: rgba(24, 24, 27, 0.75);
+  border-radius: 8px;
+  border: 1px solid #333;
+  backdrop-filter: blur(6px);
 }
 
-.cs-instruction h3 {
-  margin-bottom: 10px;
+.stream-stat {
+  text-align: center;
 }
 
-.cs-instruction ol {
-  padding-left: 20px;
-  font-size: 14px;
-  opacity: 0.7;
+/* ============== БЛОК «О СТРИМЕРЕ» ============== */
+
+.streamer-card {
+  background: rgba(24, 24, 27, 0.75);
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid #333;
+  margin-bottom: 20px;
+  backdrop-filter: blur(6px);
 }
 
-/* Адаптив */
+.streamer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.streamer-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid #9147ff;
+  box-shadow: 0 4px 12px rgba(145, 71, 255, 0.3);
+  flex-shrink: 0;
+}
+
+/* ============== ПРАВАЯ КОЛОНКА: ЧАТ ============== */
+
+.stream-chat-wrapper {
+  background: rgba(24, 24, 27, 0.8);
+  border-left: 1px solid #333;
+  height: 100vh;
+  overflow: hidden;
+  backdrop-filter: blur(8px);
+}
+
+/* ============== АДАПТИВ ============== */
+
+@media (max-width: 1100px) {
+  .stream-page {
+    grid-template-columns: 1fr 320px;
+  }
+}
+
 @media (max-width: 900px) {
-  .cs-grid {
+  .stream-page {
     grid-template-columns: 1fr;
+  }
+  .stream-chat-wrapper {
+    display: none;
   }
 }
