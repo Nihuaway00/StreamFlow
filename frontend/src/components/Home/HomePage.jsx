@@ -1,6 +1,7 @@
-import React, { useMemo } from "react"
+import React, { useMemo, useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import veschanieBackground from "../../veschanie.png"
+import Thumbnail from "../Stream/Thumbnail" // Импортируем компонент превью
 import "./Home.css"
 
 const HomePage = ({ streams = [], liveStreams = [], loading = false }) => {
@@ -10,8 +11,6 @@ const HomePage = ({ streams = [], liveStreams = [], loading = false }) => {
     const others = streams.filter(s => !liveIds.has(s.id))
     return [...liveStreams, ...others].slice(0, 27)
   }, [streams, liveStreams])
-
-  const getThumb = (stream) => stream?.thumbnail || "/no-preview.jpg"
 
   return (
     <div className="home-page-root">
@@ -31,7 +30,16 @@ const HomePage = ({ streams = [], liveStreams = [], loading = false }) => {
                   <Link key={stream.id} to={`/stream/${stream.id}`} className="stream-card">
                     <div className={`preview ${isLive ? "preview-live" : ""}`}>
                       <span className="live-badge">LIVE</span>
-                      <img src={getThumb(stream)} alt="preview" className="thumb-img" />
+                      <Thumbnail
+                        previewUrl={stream.preview_url}
+                        className="thumb-img"
+                        alt={stream.title || "Превью стрима"}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover'
+                        }}
+                      />
                     </div>
 
                     <div className="card-body">
@@ -64,7 +72,16 @@ const HomePage = ({ streams = [], liveStreams = [], loading = false }) => {
                   <Link key={stream.id} to={`/stream/${stream.id}`} className="stream-card">
                     <div className={`preview ${isLive ? "preview-live" : ""}`}>
                       {isLive && <span className="live-badge">LIVE</span>}
-                      <img src={getThumb(stream)} alt="preview" className="thumb-img" />
+                      <Thumbnail
+                        previewUrl={stream.preview_url}
+                        className="thumb-img"
+                        alt={stream.title || "Превью стрима"}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover'
+                        }}
+                      />
                     </div>
 
                     <div className="card-body">

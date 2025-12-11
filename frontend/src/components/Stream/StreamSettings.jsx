@@ -12,6 +12,8 @@ const StreamSettings = () => {
   const [editLoading, setEditLoading] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [themes, setThemes] = useState([])
+  const [previewFile, setPreviewFile] = useState(null)
+  const [previewPreview, setPreviewPreview] = useState(null)
   
   // Форма редактирования
   const [formData, setFormData] = useState({
@@ -28,21 +30,40 @@ const StreamSettings = () => {
           streamAPI.getThemes()
         ])
         
-        setStream(streamResponse.data)
+        const streamData = streamResponse.data
+        setStream(streamData)
         setThemes(themesResponse.data)
         
         // Проверяем, является ли пользователь владельцем
-        if (user?.id !== streamResponse.data.author?.id) {
+        if (user?.id !== streamData.author?.id) {
           navigate('/')
           return
         }
         
         // Заполняем форму данными стрима
         setFormData({
-          title: streamResponse.data.title || '',
-          description: streamResponse.data.description || '',
-          theme_ids: streamResponse.data.themes?.map(theme => theme.id) || []
+          title: streamData.title || '',
+          description: streamData.description || '',
+          theme_ids: streamData.themes?.map(theme => theme.id) || []
         })
+        
+        // Загружаем превью если есть
+        if (streamData.preview_url) {
+          try {
+            // Получаем URL превью
+            const fileKey = extractFileKey(streamData.preview_url)
+            if (fileKey) {
+              const response = await streamAPI.getFileUrl(fileKey)
+              let url = response.data
+              if (url && url.includes('storage:9000')) {
+                url = url.replace('storage:9000', 'localhost:9000')
+              }
+              setPreviewPreview(url)
+            }
+          } catch (error) {
+            console.error('Ошибка загрузки превью:', error)
+          }
+        }
       } catch (err) {
         console.error('Error fetching data:', err)
         navigate('/')
@@ -53,6 +74,39 @@ const StreamSettings = () => {
 
     fetchData()
   }, [streamId, user, navigate])
+
+  // Функция для извлечения file_key из URL
+  const extractFileKey = (avatarUrl) => {
+    if (!avatarUrl) {
+      console.log('❌ avatarUrl пустой')
+      return null
+    }
+    
+    console.log('🔍 Извлечение file_key из:', avatarUrl)
+    
+    if (typeof avatarUrl === 'string' && 
+      !avatarUrl.includes('://') && 
+      !avatarUrl.startsWith('/')) {
+      console.log('✅ Это уже file_key:', avatarUrl)
+      return avatarUrl
+    }
+    
+    try {
+      if (avatarUrl.startsWith('/')) {
+        const path = avatarUrl.substring(1)
+        console.log('📁 Извлечен из относительного пути:', path)
+        return path
+      }
+      
+      const url = new URL(avatarUrl)
+      let path = url.pathname.substring(1)
+      console.log('📁 Извлечен из URL:', path)
+      return path
+    } catch (error) {
+      console.error('❌ Ошибка парсинга URL:', error)
+      return avatarUrl
+    }
+  }
 
   // Обработчик изменения полей формы
   const handleInputChange = (e) => {
@@ -73,6 +127,28 @@ const StreamSettings = () => {
     }))
   }
 
+  // Обработчик выбора превью
+  const handlePreviewSelect = (event) => {
+    const file = event.target.files[0]
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Файл слишком большой. Максимальный размер: 5MB')
+        return
+      }
+
+      if (!file.type.startsWith('image/')) {
+        alert('Пожалуйста, выберите изображение')
+        return
+      }
+
+      setPreviewFile(file)
+      const previewUrl = URL.createObjectURL(file)
+      setPreviewPreview(previewUrl)
+      
+      console.log('✅ Новое превью выбрано:', file.name)
+    }
+  }
+
   // Функция для сохранения изменений
   const handleSaveChanges = async () => {
     if (!formData.title.trim()) {
@@ -82,12 +158,81 @@ const StreamSettings = () => {
 
     try {
       setEditLoading(true)
-      const response = await streamAPI.updateStream(streamId, formData)
+      
+      // Используем FormData для отправки файлов
+      const updateData = new FormData()
+      updateData.append('title', formData.title)
+      updateData.append('description', formData.description || '')
+      
+      if (formData.theme_ids.length > 0) {
+        updateData.append('theme_ids', formData.theme_ids.join(','))
+      }
+      
+      // Добавляем новое превью если выбрано
+      if (previewFile) {
+        updateData.append('preview', previewFile)
+      }
+      
+      console.log('🔄 Отправка обновления стрима...')
+      console.log('FormData содержимое:')
+      for (let pair of updateData.entries()) {
+        console.log(pair[0], ':', pair[1])
+      }
+
+      const response = await streamAPI.updateStream(streamId, updateData)
       setStream(response.data)
+      
+      // Обновляем превью если оно изменилось
+      if (response.data.preview_url) {
+        try {
+          const fileKey = extractFileKey(response.data.preview_url)
+          if (fileKey) {
+            const fileResponse = await streamAPI.getFileUrl(fileKey)
+            let url = fileResponse.data
+            if (url && url.includes('storage:9000')) {
+              url = url.replace('storage:9000', 'localhost:9000')
+            }
+            setPreviewPreview(url)
+          }
+        } catch (error) {
+          console.error('Ошибка загрузки нового превью:', error)
+        }
+      }
+      
+      setPreviewFile(null)
       alert('✅ Изменения успешно сохранены!')
     } catch (err) {
       console.error('Error updating stream:', err)
       alert('❌ Ошибка при сохранении изменений')
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
+  // Функция для удаления превью
+  const handleDeletePreview = async () => {
+    if (!window.confirm('Удалить превью-картинку?')) {
+      return
+    }
+
+    try {
+      setEditLoading(true)
+      const updateData = new FormData()
+      updateData.append('remove_preview', 'true')
+      updateData.append('title', formData.title)
+      updateData.append('description', formData.description || '')
+      
+      if (formData.theme_ids.length > 0) {
+        updateData.append('theme_ids', formData.theme_ids.join(','))
+      }
+      
+      const response = await streamAPI.updateStream(streamId, updateData)
+      setStream(response.data)
+      setPreviewPreview(null)
+      alert('✅ Превью удалено!')
+    } catch (err) {
+      console.error('Error deleting preview:', err)
+      alert('❌ Ошибка при удалении превью')
     } finally {
       setEditLoading(false)
     }
@@ -200,6 +345,111 @@ const StreamSettings = () => {
               fontFamily: 'inherit'
             }}
           />
+        </div>
+
+        {/* ПРЕВЬЮ КАРТИНКА */}
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ display: 'block', marginBottom: '12px', color: '#adadb8' }}>
+            Превью-картинка
+          </label>
+          
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px'
+          }}>
+            {previewPreview ? (
+              <div style={{
+                width: '100%',
+                maxWidth: '320px',
+                aspectRatio: '16/9',
+                position: 'relative'
+              }}>
+                <img
+                  src={previewPreview}
+                  alt="Превью стрима"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    borderRadius: '8px',
+                    border: '1px solid #444'
+                  }}
+                />
+              </div>
+            ) : (
+              <div style={{
+                width: '100%',
+                maxWidth: '320px',
+                aspectRatio: '16/9',
+                background: '#0e0e10',
+                border: '1px dashed #444',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#666',
+                fontSize: '14px'
+              }}>
+                Нет превью
+              </div>
+            )}
+            
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => document.getElementById('preview-input').click()}
+                style={{
+                  background: '#9147ff',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '13px'
+                }}
+              >
+                Загрузить новое
+              </button>
+              
+              {previewPreview && (
+                <button
+                  onClick={handleDeletePreview}
+                  style={{
+                    background: 'transparent',
+                    color: '#ff4757',
+                    border: '1px solid #ff4757',
+                    padding: '8px 16px',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '13px'
+                  }}
+                >
+                  Удалить превью
+                </button>
+              )}
+            </div>
+            
+            <input
+              id="preview-input"
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handlePreviewSelect}
+            />
+            
+            {previewFile && (
+              <div style={{
+                fontSize: '13px',
+                color: '#00ff7f',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}>
+                <span>✅</span>
+                <span>Новое превью: {previewFile.name} ({(previewFile.size / 1024).toFixed(1)} KB)</span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ТЕМАТИКИ */}

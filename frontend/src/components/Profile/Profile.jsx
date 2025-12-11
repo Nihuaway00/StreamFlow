@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import api from '../../services/api'
-import './Profile.css'  // <- подключаем новый CSS
+import './Profile.css'
 
 const Profile = () => {
     const { user, logout, updateUser } = useAuth()
@@ -69,35 +69,87 @@ const Profile = () => {
         
         try {
             const response = await api.post('/files/', null, {
-            params: { file_key: fileKey }
+                params: { file_key: fileKey }
             })
             
             let signedUrl = response.data
             console.log('✅ Signed URL от бэкенда:', signedUrl)
             
             if (typeof signedUrl === 'string') {
-            if (signedUrl.includes('storage:9000')) {
-                signedUrl = signedUrl.replace('storage:9000', 'localhost:9000')
-                console.log('🔧 Исправленный URL:', signedUrl)
-            }
-            
-            try {
-                new URL(signedUrl)
-                return signedUrl
-            } catch (urlError) {
-                console.error('❌ Невалидный URL:', signedUrl)
-                return null
-            }
+                if (signedUrl.includes('storage:9000')) {
+                    signedUrl = signedUrl.replace('storage:9000', 'localhost:9000')
+                    console.log('🔧 Исправленный URL:', signedUrl)
+                }
+                
+                try {
+                    new URL(signedUrl)
+                    return signedUrl
+                } catch (urlError) {
+                    console.error('❌ Невалидный URL:', signedUrl)
+                    return null
+                }
             } else {
-            console.error('❌ Ответ не строка:', signedUrl)
-            return null
+                console.error('❌ Ответ не строка:', signedUrl)
+                return null
             }
             
         } catch (error) {
             console.error('❌ Ошибка получения URL:', {
-            message: error.message,
-            response: error.response?.data,
-            status: error.response?.status
+                message: error.message,
+                response: error.response?.data,
+                status: error.response?.status
+            })
+            return null
+        }
+    }
+
+    const getStreamPreviewUrl = async (previewUrl) => {
+        if (!previewUrl) {
+            console.log('❌ previewUrl пустой')
+            return null
+        }
+        
+        console.log('🔍 Получение URL для превью стрима:', previewUrl)
+        
+        try {
+            const fileKey = extractFileKey(previewUrl)
+            console.log('📁 File key для превью:', fileKey)
+            
+            if (!fileKey) {
+                console.log('❌ Не удалось извлечь file_key из превью')
+                return null
+            }
+            
+            const response = await api.post('/files/', null, {
+                params: { file_key: fileKey }
+            })
+            
+            let signedUrl = response.data
+            console.log('✅ Signed URL для превью от бэкенда:', signedUrl)
+            
+            if (typeof signedUrl === 'string') {
+                if (signedUrl.includes('storage:9000')) {
+                    signedUrl = signedUrl.replace('storage:9000', 'localhost:9000')
+                    console.log('🔧 Исправленный URL превью:', signedUrl)
+                }
+                
+                try {
+                    new URL(signedUrl)
+                    return signedUrl
+                } catch (urlError) {
+                    console.error('❌ Невалидный URL превью:', signedUrl)
+                    return null
+                }
+            } else {
+                console.error('❌ Ответ не строка для превью:', signedUrl)
+                return null
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка получения URL превью:', {
+                message: error.message,
+                response: error.response?.data,
+                status: error.response?.status
             })
             return null
         }
@@ -135,18 +187,95 @@ const Profile = () => {
         }
     }
 
+    const StreamPreview = ({ previewUrl, title, style }) => {
+        const [imgUrl, setImgUrl] = useState(null)
+        const [loading, setLoading] = useState(false)
+    
+        useEffect(() => {
+            const loadPreview = async () => {
+                if (!previewUrl) {
+                    setImgUrl(null)
+                    setLoading(false)
+                    return
+                }
+                
+                try {
+                    setLoading(true)
+                    const url = await getStreamPreviewUrl(previewUrl)
+                    setImgUrl(url)
+                } catch (error) {
+                    console.error('Ошибка загрузки превью стрима:', error)
+                    setImgUrl(null)
+                } finally {
+                    setLoading(false)
+                }
+            }
+            
+            loadPreview()
+        }, [previewUrl])
+    
+        if (loading) {
+            return (
+                <div style={{
+                    ...style,
+                    background: '#111',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#666',
+                    borderRadius: '8px'
+                }}>
+                    ⏳
+                </div>
+            )
+        }
+    
+        if (imgUrl) {
+            return (
+                <img 
+                    src={imgUrl} 
+                    alt={title || "Превью стрима"}
+                    style={{
+                        ...style,
+                        borderRadius: '8px',
+                        objectFit: 'cover'
+                    }}
+                    onError={(e) => {
+                        console.error('❌ Ошибка загрузки изображения превью')
+                        e.target.style.display = 'none'
+                    }}
+                />
+            )
+        }
+    
+        return (
+            <div style={{
+                ...style,
+                background: '#111',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#666',
+                fontSize: '20px',
+                borderRadius: '8px'
+            }}>
+                {getStreamEmoji(title)}
+            </div>
+        )
+    }
+
     useEffect(() => {
         if (showSettings) {
-            document.body.classList.add('modal-open');
+            document.body.classList.add('modal-open')
         } else {
-            document.body.classList.remove('modal-open');
+            document.body.classList.remove('modal-open')
         }
         
-        // Очистка при размонтировании
         return () => {
-            document.body.classList.remove('modal-open');
-        };
-    }, [showSettings]);
+            document.body.classList.remove('modal-open')
+        }
+    }, [showSettings])
+
     useEffect(() => {
         if (!user) return
 
@@ -573,11 +702,8 @@ const Profile = () => {
 
     return (
         <div className="profile-page">
-
             <div className="profile-bg" aria-hidden="true"></div>
-
             <div className="profile-wrapper">
-
                 {/* ШАПКА ПРОФИЛЯ */}
                 <div className="glass profile-header">
                     <div className="profile-header-left">
@@ -595,7 +721,6 @@ const Profile = () => {
                                 onChange={handleFileSelect}
                             />
                         </div>
-
                         <div className="profile-info">
                             <h1>{user?.username || 'Пользователь'}</h1>
                             {user?.first_name && user?.last_name && (
@@ -608,7 +733,6 @@ const Profile = () => {
                             )}
                         </div>
                     </div>
-
                     <div className="profile-head-buttons">
                         <button className="btn btn-primary" onClick={() => setShowSettings(true)}>
                             ⚙️ Настройки
@@ -623,13 +747,10 @@ const Profile = () => {
                 {showSettings && (
                     <div className="modal-overlay">
                         <div className="glass modal-window">
-
                             <div className="modal-header">
                                 <h2>⚙️ Настройки профиля</h2>
                                 <button className="modal-close" onClick={() => setShowSettings(false)}>✕</button>
                             </div>
-
-                            {/* СМЕНА АВАТАРКИ */}
                             <div className="modal-avatar-row">
                                 <div className="modal-avatar" onClick={() => document.getElementById('avatar-input-modal').click()}>
                                     {avatarPreview ? (
@@ -645,7 +766,6 @@ const Profile = () => {
                                         </div>
                                     )}
                                 </div>
-
                                 <div style={{flex:1}}>
                                     <p className="small-muted" style={{marginBottom:8}}>Нажмите на аватар для загрузки нового</p>
                                     <div style={{display:'flex', gap:8}}>
@@ -658,60 +778,48 @@ const Profile = () => {
                                             </button>
                                         )}
                                     </div>
-
                                     <input id="avatar-input-modal" type="file" accept="image/*" style={{display: 'none'}} onChange={handleFileSelect} />
                                     {avatarFile && <p className="small-muted" style={{marginTop:10}}>Выбран файл: {avatarFile.name}</p>}
                                 </div>
                             </div>
-
-                            {/* Форма настроек */}
                             <div className="modal-form">
                                 <div>
                                     <div className="field">
                                         <label>Имя</label>
                                         <input type="text" name="first_name" value={formData.first_name} onChange={handleInputChange} placeholder="Ваше имя" />
                                     </div>
-
                                     <div className="field">
                                         <label>Фамилия</label>
                                         <input type="text" name="last_name" value={formData.last_name} onChange={handleInputChange} placeholder="Ваша фамилия" />
                                     </div>
-
                                     <div className="field">
                                         <label>О себе</label>
                                         <textarea name="bio" value={formData.bio} onChange={handleInputChange} rows="4" placeholder="Расскажите о себе..." />
                                     </div>
                                 </div>
-
                                 <div>
                                     <div className="field">
                                         <label>Телефон</label>
                                         <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} placeholder="+7 (XXX) XXX-XX-XX" />
                                     </div>
-
                                     <div className="field">
                                         <label>Дата рождения</label>
                                         <input type="date" name="date_of_birth" value={formData.date_of_birth} onChange={handleInputChange} />
                                     </div>
-
                                     <div className="field">
                                         <label>Страна</label>
                                         <input type="text" name="country" value={formData.country} onChange={handleInputChange} placeholder="Страна" />
                                     </div>
-
                                     <div className="field">
                                         <label>Город</label>
                                         <input type="text" name="city" value={formData.city} onChange={handleInputChange} placeholder="Город" />
                                     </div>
-
                                     <div className="field">
                                         <label>Веб-сайт</label>
                                         <input type="url" name="website" value={formData.website} onChange={handleInputChange} placeholder="https://example.com" />
                                     </div>
                                 </div>
                             </div>
-
-                            {/* ТЕМАТИКИ */}
                             <div className="modal-section">
                                 <h3 style={{marginBottom:8}}>🎯 Интересные тематики</h3>
                                 <p className="small-muted" style={{marginBottom:10}}>Выберите темы, которые вам интересны (для рекомендаций)</p>
@@ -731,22 +839,18 @@ const Profile = () => {
                                     </div>
                                 )}
                             </div>
-
-                            {/* Кнопки */}
                             <div className="modal-actions">
                                 <button className="btn btn-ghost" onClick={() => setShowSettings(false)}>Отмена</button>
                                 <button className="btn btn-primary" onClick={handleSaveSettings} disabled={saveLoading}>
                                     {saveLoading ? '💾 Сохранение...' : '💾 Сохранить все изменения'}
                                 </button>
                             </div>
-
                         </div>
                     </div>
                 )}
 
                 {/* ОСТАЛЬНАЯ ЧАСТЬ ПРОФИЛЯ */}
                 <div className="profile-grid" style={{marginTop:18}}>
-
                     {/* ЛЕВАЯ КОЛОНКА */}
                     <div>
                         {/* ДОСТИЖЕНИЯ */}
@@ -755,18 +859,15 @@ const Profile = () => {
                                 <span>🏆 Достижения</span>
                                 <span className="ach-count">{achievements.filter(a => a.progress >= a.total).length}/{achievements.length}</span>
                             </div>
-
                             <div className="ach-list">
                                 {achievements.map((achievement) => {
                                     const progressPercent = calculateProgress(achievement.progress, achievement.total)
                                     const isCompleted = achievement.progress >= achievement.total
-
                                     return (
                                         <div key={achievement.id} className="ach-item">
                                             <div className="ach-icon" style={{background: isCompleted ? achievement.color : 'rgba(255,255,255,0.06)'}}>
                                                 {achievement.icon}
                                             </div>
-
                                             <div className="ach-progress">
                                                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                                                     <strong style={{color: isCompleted ? achievement.color : '#fff'}}>{achievement.title}</strong>
@@ -789,7 +890,6 @@ const Profile = () => {
                         {/* МОИ СТРИМЫ */}
                         <div className="glass streams-block">
                             <h3 style={{margin:'0 0 12px 0'}}>🎥 Мои стримы</h3>
-
                             {streamsLoading ? (
                                 <div className="small-muted">Загрузка стримов...</div>
                             ) : userStreams.length === 0 ? (
@@ -802,7 +902,11 @@ const Profile = () => {
                                     {userStreams.slice(0, 3).map((stream) => (
                                         <div key={stream.id} className="stream-item">
                                             <div style={{display:'flex', alignItems:'center', gap:12}}>
-                                                <div style={{width:72, height:48, background:'#111', borderRadius:8, overflow:'hidden'}}></div>
+                                                <StreamPreview 
+                                                    previewUrl={stream.preview_url}
+                                                    title={stream.title}
+                                                    style={{width:72, height:48}}
+                                                />
                                                 <div>
                                                     <div className="stream-title">{stream.title}</div>
                                                     <div className="small-muted">{stream.description || 'Без описания'}</div>
@@ -829,7 +933,6 @@ const Profile = () => {
                             <button className="side-btn btn-ghost" onClick={() => setShowSettings(true)}>⚙️ Настройки профиля</button>
                             <button className="side-btn btn-ghost">👥 Мои подписки</button>
                         </div>
-
                         <div className="glass side-block" style={{marginTop:12}}>
                             <h3 className="side-title">ℹ️ Информация</h3>
                             <div className="small-muted">
@@ -843,7 +946,6 @@ const Profile = () => {
                             </div>
                         </div>
                     </div>
-
                 </div>
             </div>
         </div>
