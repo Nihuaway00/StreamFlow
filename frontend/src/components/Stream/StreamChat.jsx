@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { authAPI, api, chatAPI } from '../../services/api';
+import './StreamChat.css';
 
 const StreamChat = ({ streamId, chatId: propChatId }) => {
   const { user: contextUser } = useAuth();
@@ -16,7 +17,6 @@ const StreamChat = ({ streamId, chatId: propChatId }) => {
   const retryCountRef = useRef(0);
   const maxRetries = 5;
 
-  // Если chatId передан как пропс - используем его
   useEffect(() => {
     if (propChatId) {
       console.log(`✅ Chat ID получен как пропс: ${propChatId}`);
@@ -26,7 +26,6 @@ const StreamChat = ({ streamId, chatId: propChatId }) => {
     }
   }, [propChatId]);
 
-  // Загружаем пользователя
   useEffect(() => {
     const loadUser = async () => {
       if (contextUser) {
@@ -61,22 +60,18 @@ const StreamChat = ({ streamId, chatId: propChatId }) => {
     loadUser();
   }, [contextUser]);
 
-  // Основной эффект для загрузки и обновления чата
   useEffect(() => {
     if (!chatId || !user) return;
 
     console.log('🚀 Запускаю автообновление чата');
     
-    // Сразу загружаем историю
     loadMessageHistory();
     
-    // Запускаем интервал для обновления каждую секунду
     pollingIntervalRef.current = setInterval(() => {
       console.log('🔄 Автообновление чата...');
       loadMessageHistory();
-    }, 1000); // Каждую секунду
+    }, 1000);
     
-    // Пытаемся подключить WebSocket
     setupWebSocket();
     
     return () => {
@@ -90,7 +85,6 @@ const StreamChat = ({ streamId, chatId: propChatId }) => {
     };
   }, [chatId, user]);
 
-  // Настройка WebSocket
   const setupWebSocket = () => {
     if (!chatId || !user) return;
     
@@ -114,14 +108,12 @@ const StreamChat = ({ streamId, chatId: propChatId }) => {
       
       socket.onmessage = (event) => {
         console.log('📩 Сообщение через WebSocket:', event.data);
-        // Если пришло сообщение через WS, обновляем чат
         setTimeout(() => loadMessageHistory(), 100);
       };
       
       socket.onclose = () => {
         console.log('🔴 WebSocket отключен');
         setConnected(false);
-        // Пробуем переподключиться через 3 секунды
         if (retryCountRef.current < maxRetries) {
           retryCountRef.current++;
           setTimeout(() => setupWebSocket(), 3000);
@@ -139,7 +131,6 @@ const StreamChat = ({ streamId, chatId: propChatId }) => {
     }
   };
 
-  // Загрузка истории сообщений
   const loadMessageHistory = async () => {
     if (!chatId) return;
     
@@ -154,7 +145,6 @@ const StreamChat = ({ streamId, chatId: propChatId }) => {
       
       let history = [];
       
-      // Обработка разных форматов ответа
       if (Array.isArray(response.data)) {
         history = response.data;
       } else if (response.data && Array.isArray(response.data.items)) {
@@ -169,7 +159,6 @@ const StreamChat = ({ streamId, chatId: propChatId }) => {
         const processedMessages = history.reverse().map(msg => {
           let content = '';
           
-          // Обрабатываем content
           if (msg.content && typeof msg.content === 'string') {
             try {
               const parsed = JSON.parse(msg.content);
@@ -193,7 +182,6 @@ const StreamChat = ({ streamId, chatId: propChatId }) => {
           };
         });
         
-        // Обновляем сообщения только если они изменились
         setMessages(prev => {
           const prevIds = prev.map(m => m.id).join(',');
           const newIds = processedMessages.map(m => m.id).join(',');
@@ -235,13 +223,11 @@ const StreamChat = ({ streamId, chatId: propChatId }) => {
     }
   };
 
-  // Отправка сообщения
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !user || !chatId) return;
     
     const messageContent = newMessage.trim();
     
-    // Временное сообщение
     const tempMsg = {
       id: `temp_${Date.now()}`,
       content: messageContent,
@@ -257,33 +243,27 @@ const StreamChat = ({ streamId, chatId: propChatId }) => {
     setMessages(prev => [...prev, tempMsg]);
     
     try {
-      // Пробуем отправить через WebSocket
       if (connected && chatSocket && chatSocket.readyState === WebSocket.OPEN) {
         chatSocket.send(messageContent);
         console.log('✅ Отправлено через WebSocket');
       } else {
         console.log('⚠️ WebSocket недоступен, отправляю через API');
-        // Пробуем разные endpoints API
         await trySendViaAPI(messageContent);
       }
       
-      // Обновляем чат через 500мс
       setTimeout(() => loadMessageHistory(), 500);
       
     } catch (error) {
       console.error('❌ Ошибка отправки:', error);
       
-      // Показываем ошибку
       setMessages(prev => prev.map(msg => 
         msg.id === tempMsg.id 
           ? { ...msg, content: `❌ Ошибка: ${messageContent}`, is_error: true }
           : msg
       ));
       
-      // Через 3 секунды удаляем сообщение об ошибке
       setTimeout(() => {
         setMessages(prev => prev.filter(msg => msg.id !== tempMsg.id));
-        // И пытаемся снова загрузить историю
         loadMessageHistory();
       }, 3000);
     }
@@ -291,7 +271,6 @@ const StreamChat = ({ streamId, chatId: propChatId }) => {
     setNewMessage('');
   };
 
-  // Fallback отправка через API
   const trySendViaAPI = async (content) => {
     const endpoints = [
       `/chats/${chatId}/send`,
@@ -319,7 +298,6 @@ const StreamChat = ({ streamId, chatId: propChatId }) => {
     throw new Error('Все endpoints не сработали');
   };
 
-  // Автоскролл
   useEffect(() => {
     if (messages.length > 0) {
       setTimeout(() => {
@@ -331,7 +309,6 @@ const StreamChat = ({ streamId, chatId: propChatId }) => {
     }
   }, [messages]);
 
-  // Обработка Enter
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -339,7 +316,6 @@ const StreamChat = ({ streamId, chatId: propChatId }) => {
     }
   };
 
-  // Форматирование времени
   const formatMessageTime = (timestamp) => {
     if (!timestamp) return '';
     try {
@@ -353,166 +329,72 @@ const StreamChat = ({ streamId, chatId: propChatId }) => {
     }
   };
 
+  const getMessageClass = (msg) => {
+    if (msg.is_temp) return 'chat-message message-temp';
+    if (msg.is_system) return 'chat-message message-system';
+    if (msg.is_error) return 'chat-message message-error';
+    if (msg.author?.id === user?.id) return 'chat-message message-own';
+    return 'chat-message message-other';
+  };
+
   return (
-    <div style={{
-      height: '100%',
-      display: 'flex',
-      flexDirection: 'column',
-      background: '#0e0e10',
-      color: '#fff'
-    }}>
+    <div className="stream-chat">
       {/* Заголовок */}
-      <div style={{
-        padding: '15px 20px',
-        borderBottom: '1px solid #333',
-        background: '#18181b',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <div>
-          <h3 style={{ margin: '0 0 5px 0', fontSize: '16px' }}>💬 Чат стрима</h3>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: connected ? '#00ff7f' : '#ff6b6b',
-              animation: 'pulse 1s infinite'
-            }} />
-            <span style={{ 
-              fontSize: '12px', 
-              color: connected ? '#00ff7f' : '#ff6b6b',
-              fontWeight: '500'
-            }}>
-              {connected ? 'WebSocket' : 'Polling (1s)'}
-            </span>
-            <span style={{ 
-              fontSize: '12px', 
-              color: '#adadb8'
-            }}>
+      <div className="chat-header">
+        <div className="chat-title-section">
+          <h3 className="chat-title">💬 Чат стрима</h3>
+          <div className="chat-status-bar">
+            <div className="status-indicator">
+              <div className={`status-dot ${connected ? 'connected' : 'disconnected'}`} />
+              <span className={`status-text ${connected ? 'connected' : 'disconnected'}`}>
+                {connected ? 'WebSocket' : 'Polling (1s)'}
+              </span>
+            </div>
+            <span className="message-count-badge">
               {messages.filter(m => !m.is_temp && !m.is_system).length} сообщений
             </span>
           </div>
         </div>
-        <span style={{ 
-          fontSize: '11px', 
-          color: '#666',
-          fontStyle: 'italic'
-        }}>
+        <span className="auto-update-label">
           Автообновление
         </span>
       </div>
 
       {/* Сообщения */}
-      <div style={{
-        flex: 1,
-        padding: '20px',
-        overflowY: 'auto',
-        background: '#0e0e10',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px'
-      }}>
+      <div className="chat-messages">
         {loading ? (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '40px', 
-            color: '#666'
-          }}>
-            <div style={{
-              width: '30px',
-              height: '30px',
-              border: '3px solid rgba(145, 71, 255, 0.3)',
-              borderTopColor: '#9147ff',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite',
-              margin: '0 auto 15px'
-            }} />
+          <div className="chat-loading">
+            <div className="chat-loading-spinner" />
             <div>Загрузка чата...</div>
           </div>
         ) : messages.length === 0 ? (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '40px', 
-            color: '#666'
-          }}>
-            <div style={{ fontSize: '48px', marginBottom: '15px' }}>💬</div>
-            <div>Чат пуст</div>
+          <div className="chat-empty">
+            <div className="empty-icon">💬</div>
+            <div className="empty-text">Чат пуст</div>
           </div>
         ) : (
           messages.map((msg) => (
             <div
               key={msg.id}
-              style={{
-                background: msg.is_temp 
-                  ? 'rgba(145, 71, 255, 0.1)' 
-                  : msg.is_system 
-                    ? 'rgba(255, 255, 255, 0.05)' 
-                    : msg.is_error
-                      ? 'rgba(255, 107, 107, 0.1)'
-                      : msg.author?.id === user?.id
-                        ? 'rgba(145, 71, 255, 0.15)'
-                        : '#252525',
-                border: `1px solid ${
-                  msg.is_temp ? '#9147ff' 
-                  : msg.is_system ? '#666' 
-                  : msg.is_error ? '#ff6b6b' 
-                  : msg.author?.id === user?.id ? '#9147ff'
-                  : '#333'
-                }`,
-                borderRadius: '8px',
-                padding: '12px',
-                opacity: msg.is_temp ? 0.7 : 1,
-                animation: msg.is_temp ? 'pulse 1s infinite' : 'none'
-              }}
+              className={getMessageClass(msg)}
             >
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                marginBottom: '6px'
-              }}>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '8px' 
-                }}>
-                  <strong style={{ 
-                    color: msg.author?.id === user?.id 
-                      ? '#00ff7f' 
-                      : msg.author?.id === 'system'
-                        ? '#adadb8'
-                        : '#9147ff',
-                    fontSize: '14px'
-                  }}>
+              <div className="message-header">
+                <div className="message-author">
+                  <strong className="author-name">
                     {msg.author?.username || 'Аноним'}
                     {msg.is_temp && ' (отправка...)'}
                   </strong>
                   {msg.author?.id === user?.id && !msg.is_temp && (
-                    <span style={{
-                      fontSize: '10px',
-                      background: 'rgba(0, 255, 127, 0.1)',
-                      color: '#00ff7f',
-                      padding: '2px 6px',
-                      borderRadius: '10px'
-                    }}>
+                    <span className="author-badge">
                       Вы
                     </span>
                   )}
                 </div>
-                <span style={{ 
-                  color: '#666', 
-                  fontSize: '11px'
-                }}>
+                <span className="message-time">
                   {formatMessageTime(msg.created_at)}
                 </span>
               </div>
-              <div style={{ 
-                color: msg.is_error ? '#ff6b6b' : '#efeff1', 
-                fontSize: '14px',
-                lineHeight: '1.4'
-              }}>
+              <div className="message-content">
                 {msg.content}
               </div>
             </div>
@@ -522,85 +404,26 @@ const StreamChat = ({ streamId, chatId: propChatId }) => {
       </div>
 
       {/* Форма отправки */}
-      <div style={{
-        padding: '15px 20px',
-        borderTop: '1px solid #333',
-        background: '#18181b'
-      }}>
-        <div style={{ 
-          display: 'flex', 
-          gap: '10px',
-          alignItems: 'center'
-        }}>
+      <div className="chat-form">
+        <div className="form-controls">
           <input
             type="text"
+            className="glass-input"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder={user ? "Сообщение..." : "Войдите для чата..."}
             disabled={!user}
-            style={{
-              flex: 1,
-              padding: '12px 16px',
-              background: '#1a1a1a',
-              border: '1px solid #333',
-              borderRadius: '8px',
-              color: 'white',
-              fontSize: '14px'
-            }}
           />
           <button
+            className="send-button"
             onClick={handleSendMessage}
             disabled={!newMessage.trim() || !user}
-            style={{
-              background: !newMessage.trim() || !user ? '#333' : '#9147ff',
-              color: 'white',
-              border: 'none',
-              padding: '12px 20px',
-              borderRadius: '8px',
-              cursor: !newMessage.trim() || !user ? 'not-allowed' : 'pointer',
-              fontSize: '16px',
-              minWidth: '50px'
-            }}
           >
             ➤
           </button>
         </div>
-        <div style={{
-          fontSize: '11px',
-          color: '#666',
-          marginTop: '8px',
-          display: 'flex',
-          justifyContent: 'space-between'
-        }}>
-          <span>
-            {user ? `Вы: ${user.username}` : 'Не авторизован'}
-          </span>
-          <span>
-            {newMessage.trim().length}/500
-          </span>
-        </div>
       </div>
-
-      <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
-        *::-webkit-scrollbar {
-          width: 6px;
-        }
-        *::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        *::-webkit-scrollbar-thumb {
-          background-color: #333;
-          border-radius: 3px;
-        }
-      `}</style>
     </div>
   );
 };

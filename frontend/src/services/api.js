@@ -123,11 +123,10 @@ export const streamAPI = {
   getThemes: () => api.get('/themes/'),
   
   // Обновить стрим (PATCH /api/streams/{stream_id}) - с поддержкой файлов
-  updateStream: (streamId, formData) => api.patch(`/streams/${streamId}`, formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data'
-    }
-  }),
+  updateStream: (streamId, formData) => {
+    // УБИРАЕМ заголовок Content-Type, чтобы браузер сам установил его с boundary
+    return api.patch(`/streams/${streamId}`, formData);
+  },
   
   // Удалить стрим (DELETE /api/streams/{stream_id})
   deleteStream: (streamId) => api.delete(`/streams/${streamId}`),

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { streamAPI } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
+import './StreamSettings.css'
 
 const StreamSettings = () => {
   const { streamId } = useParams()
@@ -51,15 +52,12 @@ const StreamSettings = () => {
         if (streamData.preview_url) {
           try {
             // Получаем URL превью
-            const fileKey = extractFileKey(streamData.preview_url)
-            if (fileKey) {
-              const response = await streamAPI.getFileUrl(fileKey)
-              let url = response.data
-              if (url && url.includes('storage:9000')) {
-                url = url.replace('storage:9000', 'localhost:9000')
-              }
-              setPreviewPreview(url)
+            const response = await streamAPI.getFileUrl(streamData.preview_url)
+            let url = response.data
+            if (url && url.includes('storage:9000')) {
+              url = url.replace('storage:9000', 'localhost:9000')
             }
+            setPreviewPreview(url)
           } catch (error) {
             console.error('Ошибка загрузки превью:', error)
           }
@@ -162,9 +160,13 @@ const StreamSettings = () => {
       // Используем FormData для отправки файлов
       const updateData = new FormData()
       updateData.append('title', formData.title)
+      
+      // Добавляем description только если он есть (может быть пустой строкой)
       updateData.append('description', formData.description || '')
       
+      // Добавляем theme_ids только если они есть
       if (formData.theme_ids.length > 0) {
+        // Создаем строку из ID тем, разделенных запятыми
         updateData.append('theme_ids', formData.theme_ids.join(','))
       }
       
@@ -174,10 +176,11 @@ const StreamSettings = () => {
       }
       
       console.log('🔄 Отправка обновления стрима...')
-      console.log('FormData содержимое:')
-      for (let pair of updateData.entries()) {
-        console.log(pair[0], ':', pair[1])
-      }
+      console.log('Данные для отправки:')
+      console.log('- title:', formData.title)
+      console.log('- description:', formData.description)
+      console.log('- theme_ids:', formData.theme_ids.join(','))
+      console.log('- preview файл:', previewFile ? 'есть' : 'нет')
 
       const response = await streamAPI.updateStream(streamId, updateData)
       setStream(response.data)
@@ -202,8 +205,13 @@ const StreamSettings = () => {
       setPreviewFile(null)
       alert('✅ Изменения успешно сохранены!')
     } catch (err) {
-      console.error('Error updating stream:', err)
-      alert('❌ Ошибка при сохранении изменений')
+      console.error('❌ Ошибка при обновлении стрима:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+        headers: err.response?.headers
+      })
+      alert('❌ Ошибка при сохранении изменений. Проверьте данные и попробуйте снова.')
     } finally {
       setEditLoading(false)
     }
@@ -218,20 +226,28 @@ const StreamSettings = () => {
     try {
       setEditLoading(true)
       const updateData = new FormData()
-      updateData.append('remove_preview', 'true')
       updateData.append('title', formData.title)
       updateData.append('description', formData.description || '')
       
+      // Добавляем theme_ids только если они есть
       if (formData.theme_ids.length > 0) {
         updateData.append('theme_ids', formData.theme_ids.join(','))
       }
       
+      // Для удаления превью отправляем специальный флаг
+      updateData.append('remove_preview', 'true')
+      
+      console.log('🔄 Отправка запроса на удаление превью...')
       const response = await streamAPI.updateStream(streamId, updateData)
       setStream(response.data)
       setPreviewPreview(null)
       alert('✅ Превью удалено!')
     } catch (err) {
-      console.error('Error deleting preview:', err)
+      console.error('❌ Ошибка при удалении превью:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status
+      })
       alert('❌ Ошибка при удалении превью')
     } finally {
       setEditLoading(false)
@@ -250,7 +266,7 @@ const StreamSettings = () => {
       alert('✅ Стрим успешно удален!')
       navigate('/profile')
     } catch (err) {
-      console.error('Error deleting stream:', err)
+      console.error('❌ Ошибка при удалении стрима:', err)
       alert('❌ Ошибка при удалении стрима')
     } finally {
       setDeleteLoading(false)
@@ -262,331 +278,260 @@ const StreamSettings = () => {
     const themeNames = {
       'gaming': '🎮 Игры',
       'music': '🎵 Музыка', 
-      'just_chatting': '💬 Общение'
+      'just_chatting': '💬 Общение',
+      'art': '🎨 Искусство',
+      'sports': '⚽ Спорт',
+      'technology': '💻 Технологии'
     }
     return themeNames[themeName] || themeName
   }
 
   if (loading) return (
-    <div style={{ padding: '50px', textAlign: 'center', color: 'white' }}>
-      <div style={{ fontSize: '32px', marginBottom: '10px' }}>⏳</div>
-      Загрузка...
+    <div className="settings-page">
+      <div className="profile-bg" aria-hidden="true"></div>
+      <div className="settings-wrapper">
+        <div className="glass loading-container">
+          <div className="loading-spinner">⏳</div>
+          <p>Загрузка настроек стрима...</p>
+        </div>
+      </div>
     </div>
   )
 
   return (
-    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto', color: 'white' }}>
-      {/* ХЛЕБНЫЕ КРОШКИ */}
-      <div style={{ marginBottom: '30px' }}>
-        <Link to="/" style={{ color: '#9147ff', textDecoration: 'none' }}>Главная</Link>
-        <span style={{ color: '#adadb8', margin: '0 10px' }}>/</span>
-        <Link to={`/stream/${streamId}`} style={{ color: '#9147ff', textDecoration: 'none' }}>
-          {stream?.title}
-        </Link>
-        <span style={{ color: '#adadb8', margin: '0 10px' }}>/</span>
-        <span>Настройки</span>
-      </div>
-
-      <h1>⚙️ Настройки стрима</h1>
-
-      {/* РЕДАКТИРОВАНИЕ СТРИМА */}
-      <div style={{
-        background: '#18181b',
-        borderRadius: '8px',
-        padding: '25px',
-        marginBottom: '20px',
-        border: '1px solid #333'
-      }}>
-        <h2 style={{ marginBottom: '20px', color: '#efeff1' }}>📝 Редактирование стрима</h2>
+    <div className="settings-page">
+      <div className="profile-bg" aria-hidden="true"></div>
+      <div className="settings-wrapper">
         
-        {/* НАЗВАНИЕ */}
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ display: 'block', marginBottom: '8px', color: '#adadb8' }}>
-            Название стрима *
-          </label>
-          <input
-            type="text"
-            name="title"
-            value={formData.title}
-            onChange={handleInputChange}
-            placeholder="Введите название стрима"
-            style={{
-              width: '100%',
-              padding: '12px',
-              background: '#0e0e10',
-              border: '1px solid #444',
-              borderRadius: '4px',
-              color: 'white',
-              fontSize: '14px'
-            }}
-          />
+        {/* ХЛЕБНЫЕ КРОШКИ */}
+        <div className="breadcrumbs">
+          <Link to="/" className="breadcrumb-link">Главная</Link>
+          <span className="breadcrumb-separator">/</span>
+          <Link to={`/stream/${streamId}`} className="breadcrumb-link">
+            {stream?.title}
+          </Link>
+          <span className="breadcrumb-separator">/</span>
+          <span className="breadcrumb-current">Настройки</span>
         </div>
 
-        {/* ОПИСАНИЕ */}
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ display: 'block', marginBottom: '8px', color: '#adadb8' }}>
-            Описание
-          </label>
-          <textarea
-            name="description"
-            value={formData.description}
-            onChange={handleInputChange}
-            placeholder="Опишите ваш стрим..."
-            rows="4"
-            style={{
-              width: '100%',
-              padding: '12px',
-              background: '#0e0e10',
-              border: '1px solid #444',
-              borderRadius: '4px',
-              color: 'white',
-              fontSize: '14px',
-              resize: 'vertical',
-              fontFamily: 'inherit'
-            }}
-          />
+        {/* ЗАГОЛОВОК */}
+        <div className="glass title-container">
+          <div className="title-content">
+            <h1>⚙️ Настройки стрима</h1>
+            <p className="subtitle">
+              Управление настройками и информацией о трансляции
+            </p>
+          </div>
         </div>
 
-        {/* ПРЕВЬЮ КАРТИНКА */}
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ display: 'block', marginBottom: '12px', color: '#adadb8' }}>
-            Превью-картинка
-          </label>
+        {/* РЕДАКТИРОВАНИЕ СТРИМА */}
+        <div className="glass edit-section">
+          <h2 className="section-title">
+            <span className="section-icon">📝</span>
+            Редактирование стрима
+          </h2>
           
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px'
-          }}>
-            {previewPreview ? (
-              <div style={{
-                width: '100%',
-                maxWidth: '320px',
-                aspectRatio: '16/9',
-                position: 'relative'
-              }}>
-                <img
-                  src={previewPreview}
-                  alt="Превью стрима"
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    borderRadius: '8px',
-                    border: '1px solid #444'
-                  }}
-                />
-              </div>
-            ) : (
-              <div style={{
-                width: '100%',
-                maxWidth: '320px',
-                aspectRatio: '16/9',
-                background: '#0e0e10',
-                border: '1px dashed #444',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#666',
-                fontSize: '14px'
-              }}>
-                Нет превью
-              </div>
-            )}
-            
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                onClick={() => document.getElementById('preview-input').click()}
-                style={{
-                  background: '#9147ff',
-                  color: 'white',
-                  border: 'none',
-                  padding: '8px 16px',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '13px'
-                }}
-              >
-                Загрузить новое
-              </button>
-              
-              {previewPreview && (
-                <button
-                  onClick={handleDeletePreview}
-                  style={{
-                    background: 'transparent',
-                    color: '#ff4757',
-                    border: '1px solid #ff4757',
-                    padding: '8px 16px',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '13px'
-                  }}
-                >
-                  Удалить превью
-                </button>
-              )}
-            </div>
-            
-            <input
-              id="preview-input"
-              type="file"
-              accept="image/*"
-              style={{ display: 'none' }}
-              onChange={handlePreviewSelect}
-            />
-            
-            {previewFile && (
-              <div style={{
-                fontSize: '13px',
-                color: '#00ff7f',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px'
-              }}>
-                <span>✅</span>
-                <span>Новое превью: {previewFile.name} ({(previewFile.size / 1024).toFixed(1)} KB)</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ТЕМАТИКИ */}
-        <div style={{ marginBottom: '25px' }}>
-          <label style={{ display: 'block', marginBottom: '12px', color: '#adadb8' }}>
-            Тематики
-          </label>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-            gap: '10px'
-          }}>
-            {themes.map((theme) => (
-              <label
-                key={theme.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '10px',
-                  background: formData.theme_ids.includes(theme.id) ? '#9147ff20' : '#0e0e10',
-                  border: `1px solid ${formData.theme_ids.includes(theme.id) ? '#9147ff' : '#444'}`,
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
-              >
+          <div className="form-grid">
+            {/* ЛЕВАЯ КОЛОНКА */}
+            <div>
+              {/* НАЗВАНИЕ */}
+              <div className="form-field">
+                <label>Название стрима *</label>
                 <input
-                  type="checkbox"
-                  checked={formData.theme_ids.includes(theme.id)}
-                  onChange={() => handleThemeChange(theme.id)}
-                  style={{ display: 'none' }}
+                  type="text"
+                  name="title"
+                  value={formData.title}
+                  onChange={handleInputChange}
+                  placeholder="Введите название стрима"
+                  className="form-input"
                 />
-                <div style={{
-                  width: '16px',
-                  height: '16px',
-                  border: `2px solid ${formData.theme_ids.includes(theme.id) ? '#9147ff' : '#666'}`,
-                  borderRadius: '3px',
-                  background: formData.theme_ids.includes(theme.id) ? '#9147ff' : 'transparent',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '10px',
-                  color: 'white'
-                }}>
-                  {formData.theme_ids.includes(theme.id) && '✓'}
+              </div>
+
+              {/* ОПИСАНИЕ */}
+              <div className="form-field">
+                <label>Описание</label>
+                <textarea
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  placeholder="Опишите ваш стрим..."
+                  rows="4"
+                  className="form-textarea"
+                />
+              </div>
+            </div>
+
+            {/* ПРАВАЯ КОЛОНКА */}
+            <div>
+              {/* ПРЕВЬЮ КАРТИНКА */}
+              <div className="form-field">
+                <label>Превью-картинка</label>
+                
+                <div className="preview-section">
+                  {previewPreview ? (
+                    <div className="preview-container">
+                      <img
+                        src={previewPreview}
+                        alt="Превью стрима"
+                        className="preview-image"
+                        onError={(e) => {
+                          console.error('❌ Ошибка загрузки превью')
+                          e.target.style.display = 'none'
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="preview-placeholder">
+                      <div className="placeholder-icon">🖼️</div>
+                      <div>Превью отсутствует</div>
+                    </div>
+                  )}
+                  
+                  <div className="preview-actions">
+                    <button
+                      onClick={() => document.getElementById('preview-input').click()}
+                      className="btn btn-primary preview-btn"
+                      disabled={editLoading}
+                    >
+                      📁 Загрузить новое
+                    </button>
+                    
+                    {previewPreview && (
+                      <button
+                        onClick={handleDeletePreview}
+                        className="btn btn-ghost preview-btn"
+                        disabled={editLoading}
+                      >
+                        🗑️ Удалить превью
+                      </button>
+                    )}
+                  </div>
+                  
+                  <input
+                    id="preview-input"
+                    type="file"
+                    accept="image/*"
+                    className="file-input"
+                    onChange={handlePreviewSelect}
+                  />
+                  
+                  {previewFile && (
+                    <div className="file-info">
+                      <span>✅</span>
+                      Новое превью: {previewFile.name} ({(previewFile.size / 1024).toFixed(1)} KB)
+                    </div>
+                  )}
                 </div>
-                <span style={{ color: 'white', fontSize: '14px' }}>
-                  {getThemeDisplayName(theme.name)}
-                </span>
-              </label>
-            ))}
+              </div>
+            </div>
+          </div>
+
+          {/* ТЕМАТИКИ */}
+          <div className="form-field">
+            <label>Тематики</label>
+            <div className="themes-grid">
+              {themes.map((theme) => (
+                <div
+                  key={theme.id}
+                  className={`theme-selector ${formData.theme_ids.includes(theme.id) ? 'selected' : ''}`}
+                  onClick={() => handleThemeChange(theme.id)}
+                >
+                  <div className="theme-selector-icon">
+                    {theme.name === 'gaming' ? '🎮' :
+                     theme.name === 'music' ? '🎵' :
+                     theme.name === 'just_chatting' ? '💬' :
+                     theme.name === 'art' ? '🎨' :
+                     theme.name === 'sports' ? '⚽' :
+                     theme.name === 'technology' ? '💻' : '📌'}
+                  </div>
+                  <span className="theme-selector-name">
+                    {getThemeDisplayName(theme.name)}
+                  </span>
+                  {formData.theme_ids.includes(theme.id) && (
+                    <div className="theme-selector-check">✓</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* КНОПКА СОХРАНЕНИЯ */}
+          <div className="form-actions">
+            <button
+              onClick={handleSaveChanges}
+              disabled={editLoading}
+              className="btn btn-primary save-btn"
+            >
+              {editLoading ? '💾 Сохранение...' : '💾 Сохранить изменения'}
+            </button>
           </div>
         </div>
 
-        {/* КНОПКА СОХРАНЕНИЯ */}
-        <button
-          onClick={handleSaveChanges}
-          disabled={editLoading}
-          style={{
-            background: editLoading ? '#666' : '#9147ff',
-            color: 'white',
-            border: 'none',
-            padding: '12px 30px',
-            borderRadius: '4px',
-            cursor: editLoading ? 'not-allowed' : 'pointer',
-            fontSize: '14px',
-            fontWeight: 'bold'
-          }}
-        >
-          {editLoading ? '💾 Сохранение...' : '💾 Сохранить изменения'}
-        </button>
-      </div>
-
-      {/* ИНФОРМАЦИЯ О СТРИМЕ */}
-      <div style={{
-        background: '#18181b',
-        borderRadius: '8px',
-        padding: '20px',
-        marginBottom: '20px',
-        border: '1px solid #333'
-      }}>
-        <h3 style={{ marginBottom: '15px', color: '#efeff1' }}>📊 Информация о стриме</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
-          <div>
-            <strong style={{ color: '#adadb8' }}>Статус:</strong>
-            <p style={{ color: 'white', margin: '5px 0 0 0' }}>
-              {stream?.status === 'live' ? '🟢 В эфире' : '🔴 Не в эфире'}
-            </p>
-          </div>
-          <div>
-            <strong style={{ color: '#adadb8' }}>Зрителей:</strong>
-            <p style={{ color: 'white', margin: '5px 0 0 0' }}>{stream?.viewers_count || 0}</p>
-          </div>
-          <div>
-            <strong style={{ color: '#adadb8' }}>Создан:</strong>
-            <p style={{ color: 'white', margin: '5px 0 0 0' }}>
-              {new Date(stream?.created_at).toLocaleDateString('ru-RU')}
-            </p>
-          </div>
-          <div>
-            <strong style={{ color: '#adadb8' }}>Обновлен:</strong>
-            <p style={{ color: 'white', margin: '5px 0 0 0' }}>
-              {new Date(stream?.updated_at).toLocaleDateString('ru-RU')}
-            </p>
+        {/* ИНФОРМАЦИЯ О СТРИМЕ */}
+        <div className="glass info-section">
+          <h3 className="section-title">
+            <span className="section-icon">📊</span>
+            Информация о стриме
+          </h3>
+          <div className="info-grid">
+            <div className="info-item">
+              <div className="info-label">Статус</div>
+              <div className={`info-value ${stream?.status === 'live' ? 'status-live' : 'status-offline'}`}>
+                {stream?.status === 'live' ? '🟢 В эфире' : '🔴 Не в эфире'}
+              </div>
+            </div>
+            <div className="info-item">
+              <div className="info-label">Зрителей</div>
+              <div className="info-value">
+                <span className="viewer-count">{stream?.viewers_count || 0}</span> 👁️
+              </div>
+            </div>
+            <div className="info-item">
+              <div className="info-label">Создан</div>
+              <div className="info-value">
+                {new Date(stream?.created_at).toLocaleDateString('ru-RU')}
+              </div>
+            </div>
+            <div className="info-item">
+              <div className="info-label">Обновлен</div>
+              <div className="info-value">
+                {new Date(stream?.updated_at).toLocaleDateString('ru-RU')}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* ОПАСНАЯ ЗОНА */}
-      <div style={{
-        background: '#2a1a1a',
-        border: '1px solid #ff4757',
-        borderRadius: '8px',
-        padding: '25px'
-      }}>
-        <h3 style={{ color: '#ff4757', marginBottom: '15px' }}>🗑️ Опасная зона</h3>
-        <p style={{ color: '#adadb8', marginBottom: '20px' }}>
-          Это действие нельзя отменить. Все данные стрима, включая статистику и запись, будут безвозвратно удалены.
-        </p>
-        
-        <button
-          onClick={handleDelete}
-          disabled={deleteLoading}
-          style={{
-            background: deleteLoading ? '#666' : '#ff4757',
-            color: 'white',
-            border: 'none',
-            padding: '12px 24px',
-            borderRadius: '4px',
-            cursor: deleteLoading ? 'not-allowed' : 'pointer',
-            fontSize: '14px',
-            fontWeight: 'bold'
-          }}
-        >
-          {deleteLoading ? '🔄 Удаление...' : '🗑️ Удалить стрим'}
-        </button>
+        {/* ОПАСНАЯ ЗОНА */}
+        <div className="glass danger-zone">
+          <div className="danger-header">
+            <h3 className="danger-title">
+              <span className="danger-icon">⚠️</span>
+              Опасная зона
+            </h3>
+            <div className="danger-subtitle">
+              Это действие нельзя отменить. Все данные стрима будут удалены.
+            </div>
+          </div>
+          
+          <button
+            onClick={handleDelete}
+            disabled={deleteLoading}
+            className="btn danger-btn"
+          >
+            {deleteLoading ? (
+              <>
+                <span className="btn-spinner"></span>
+                Удаление...
+              </>
+            ) : (
+              <>
+                <span className="btn-icon">🗑️</span>
+                Удалить стрим
+              </>
+            )}
+          </button>
+        </div>
+
       </div>
     </div>
   )
