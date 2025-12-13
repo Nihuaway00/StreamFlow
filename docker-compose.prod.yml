@@ -21,7 +21,7 @@ services:
       - BACKEND_PORT=8000
       - FRONTEND_HOST=frontend
       - FRONTEND_PORT=5173
-      - STORAGE_HOST=91.186.197.80
+      - STORAGE_HOST=localhost
       - STORAGE_PORT=9000
     ports:
       - "80:80"
@@ -37,7 +37,7 @@ services:
       - HLS_BASE_URL=http://91.186.197.80:8080
       - RTMP_SERVER_HOST=media-server
       - RTMP_PORT=1935
-      - MINIO_ENDPOINT=91.186.197.80:9000
+      - MINIO_ENDPOINT=localhost:9000
       - MINIO_ACCESSKEY=test
       - MINIO_SECRETKEY=secure123$
       - MINIO_BUCKET=prod
