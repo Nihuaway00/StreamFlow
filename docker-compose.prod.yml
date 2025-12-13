@@ -5,8 +5,8 @@ services:
     ports:
       - "9999:5432"
     environment:
-      POSTGRES_USER: test
-      POSTGRES_PASSWORD: test
+      POSTGRES_USER: prod
+      POSTGRES_PASSWORD: prod
       POSTGRES_DB: streaming_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -33,7 +33,7 @@ services:
     container_name: backend
     build: ./backend
     environment:
-      - DATABASE_URL=postgresql+asyncpg://user:password@postgres:5432/streaming_db
+      - DATABASE_URL=postgresql+asyncpg://prod:prod@postgres:5432/streaming_db
       - MINIO_ENDPOINT=storage:9000
       - MINIO_ACCESSKEY=minioadmin
       - MINIO_SECRETKEY=minioadmin
