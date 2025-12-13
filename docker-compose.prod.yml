@@ -21,7 +21,7 @@ services:
       - BACKEND_PORT=8000
       - FRONTEND_HOST=frontend
       - FRONTEND_PORT=5173
-      - STORAGE_HOST=localhost
+      - STORAGE_HOST=host.docker.internal
       - STORAGE_PORT=9000
     ports:
       - "80:80"
