@@ -113,6 +113,7 @@ const Header = () => {
   }
 
   return (
+    <>
     <header className="header" style={{ backgroundImage: `url(${shapka})` }}>
       <div className="header__content">
 
@@ -172,6 +173,8 @@ const Header = () => {
         </div>
       </div>
     </header>
+    <div style={{ height: '15px' }}></div>
+  </>
   )
 }
 

@@ -3,7 +3,6 @@
   background-size: cover;
   background-position: center;
   border-bottom: 1px solid rgba(255, 255, 255, .2);
-
   position: fixed;
   top: 0;
   left: 0;
@@ -13,6 +12,7 @@
   display: flex;
   align-items: center;
 }
+
 
 .header__content {
   width: 100%;
@@ -231,3 +231,4 @@
   height: 100%;
   object-fit: cover;
 }
+
