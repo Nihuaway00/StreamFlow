@@ -19,7 +19,6 @@ import HomePage from "./components/Home/HomePage"
 // Фон
 import backgroundImage from "./background.png"
 
-// Вынесите основной контент в отдельный компонент
 const AppContent = () => {
   const [streams, setStreams] = useState([])
   const [liveStreams, setLiveStreams] = useState([])

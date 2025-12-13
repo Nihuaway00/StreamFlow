@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import api from '../../services/api'
+import Thumbnail from '../Stream/Thumbnail'
 import './Profile.css'
 
 const Profile = () => {
@@ -103,58 +104,6 @@ const Profile = () => {
         }
     }
 
-    const getStreamPreviewUrl = async (previewUrl) => {
-        if (!previewUrl) {
-            console.log('❌ previewUrl пустой')
-            return null
-        }
-        
-        console.log('🔍 Получение URL для превью стрима:', previewUrl)
-        
-        try {
-            const fileKey = extractFileKey(previewUrl)
-            console.log('📁 File key для превью:', fileKey)
-            
-            if (!fileKey) {
-                console.log('❌ Не удалось извлечь file_key из превью')
-                return null
-            }
-            
-            const response = await api.post('/files/', null, {
-                params: { file_key: fileKey }
-            })
-            
-            let signedUrl = response.data
-            console.log('✅ Signed URL для превью от бэкенда:', signedUrl)
-            
-            if (typeof signedUrl === 'string') {
-                if (signedUrl.includes('storage:9000')) {
-                    signedUrl = signedUrl.replace('storage:9000', 'localhost:9000')
-                    console.log('🔧 Исправленный URL превью:', signedUrl)
-                }
-                
-                try {
-                    new URL(signedUrl)
-                    return signedUrl
-                } catch (urlError) {
-                    console.error('❌ Невалидный URL превью:', signedUrl)
-                    return null
-                }
-            } else {
-                console.error('❌ Ответ не строка для превью:', signedUrl)
-                return null
-            }
-            
-        } catch (error) {
-            console.error('❌ Ошибка получения URL превью:', {
-                message: error.message,
-                response: error.response?.data,
-                status: error.response?.status
-            })
-            return null
-        }
-    }
-
     const extractFileKey = (avatarUrl) => {
         if (!avatarUrl) {
             console.log('❌ avatarUrl пустой')
@@ -185,83 +134,6 @@ const Profile = () => {
             console.error('❌ Ошибка парсинга URL:', error)
             return avatarUrl
         }
-    }
-
-    const StreamPreview = ({ previewUrl, title, style }) => {
-        const [imgUrl, setImgUrl] = useState(null)
-        const [loading, setLoading] = useState(false)
-    
-        useEffect(() => {
-            const loadPreview = async () => {
-                if (!previewUrl) {
-                    setImgUrl(null)
-                    setLoading(false)
-                    return
-                }
-                
-                try {
-                    setLoading(true)
-                    const url = await getStreamPreviewUrl(previewUrl)
-                    setImgUrl(url)
-                } catch (error) {
-                    console.error('Ошибка загрузки превью стрима:', error)
-                    setImgUrl(null)
-                } finally {
-                    setLoading(false)
-                }
-            }
-            
-            loadPreview()
-        }, [previewUrl])
-    
-        if (loading) {
-            return (
-                <div style={{
-                    ...style,
-                    background: '#111',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#666',
-                    borderRadius: '8px'
-                }}>
-                    ⏳
-                </div>
-            )
-        }
-    
-        if (imgUrl) {
-            return (
-                <img 
-                    src={imgUrl} 
-                    alt={title || "Превью стрима"}
-                    style={{
-                        ...style,
-                        borderRadius: '8px',
-                        objectFit: 'cover'
-                    }}
-                    onError={(e) => {
-                        console.error('❌ Ошибка загрузки изображения превью')
-                        e.target.style.display = 'none'
-                    }}
-                />
-            )
-        }
-    
-        return (
-            <div style={{
-                ...style,
-                background: '#111',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#666',
-                fontSize: '20px',
-                borderRadius: '8px'
-            }}>
-                {getStreamEmoji(title)}
-            </div>
-        )
     }
 
     useEffect(() => {
@@ -902,10 +774,11 @@ const Profile = () => {
                                     {userStreams.slice(0, 3).map((stream) => (
                                         <div key={stream.id} className="stream-item">
                                             <div style={{display:'flex', alignItems:'center', gap:12}}>
-                                                <StreamPreview 
+                                                {/* ИСПОЛЬЗУЕМ Thumbnail вместо StreamPreview */}
+                                                <Thumbnail
                                                     previewUrl={stream.preview_url}
-                                                    title={stream.title}
-                                                    style={{width:72, height:48}}
+                                                    alt={stream.title || "Превью стрима"}
+                                                    style={{width:72, height:48, borderRadius: '8px'}}
                                                 />
                                                 <div>
                                                     <div className="stream-title">{stream.title}</div>
