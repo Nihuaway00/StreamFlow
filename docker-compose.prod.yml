@@ -1,12 +1,12 @@
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: streamflow-backend-db
+    container_name: db
     ports:
       - "9999:5432"
     environment:
-      POSTGRES_USER: test
-      POSTGRES_PASSWORD: test
+      POSTGRES_USER: prod
+      POSTGRES_PASSWORD: prod
       POSTGRES_DB: streaming_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -14,10 +14,10 @@ services:
       - streamflow
 
   nginx:
-    container_name: streamflow-backend-nginx
-    build: ../nginx
+    container_name: nginx
+    build: ./nginx
     environment:
-      - BACKEND_HOST=host.docker.internal
+      - BACKEND_HOST=backend
       - BACKEND_PORT=8000
       - FRONTEND_HOST=frontend
       - FRONTEND_PORT=5173
@@ -28,11 +28,32 @@ services:
     networks:
       - streamflow
 
-  media-server:
-    container_name: streamflow-backend-media
-    build: ../media_server
+  backend:
+    container_name: backend
+    build: ./backend
     environment:
-      - BACKEND_HOST=host.docker.internal
+      - DATABASE_URL=postgresql+asyncpg://prod:prod@postgres:5432/streaming_db
+      - HLS_BASE_URL=http://${{ secrets.SERVER_HOST }}:8080
+      - RTMP_SERVER_HOST=media-server
+      - RTMP_PORT=1935
+      - MINIO_ENDPOINT=storage:9000
+      - MINIO_ACCESSKEY=test
+      - MINIO_SECRETKEY=secure123$
+      - MINIO_BUCKET=prod
+      - API_HOST=${{ secrets.SERVER_HOST }}
+      - API_PORT=80
+    depends_on:
+      - nginx
+      - postgres
+      - storage
+    networks:
+      - streamflow
+
+  media-server:
+    container_name: media-server
+    build: ./media_server
+    environment:
+      - BACKEND_HOST=backend
       - BACKEND_PORT=8000
     ports:
       - "1935:1935"
@@ -43,18 +64,19 @@ services:
       - streamflow
 
   frontend:
-    container_name: streamflow-backend-frontend
+    container_name: frondend
     build:
-      context: ../frontend
+      context: ./frontend
       dockerfile: Dockerfile
     environment:
-      VITE_API_URL: http://localhost:8000
+      VITE_API_URL: http://backend:8000
+      VITE_HLS_BASE_URL: http://media-server:8080
     networks:
       - streamflow
 
   storage:
     image: minio/minio
-    container_name: streamflow-backend-storage
+    container_name: storage
     command: server /data --console-address ":9090"
     restart: always
     volumes:
