@@ -35,8 +35,8 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://prod:prod@postgres:5432/streaming_db
       - MINIO_ENDPOINT=storage:9000
-      - MINIO_ACCESSKEY=minioadmin
-      - MINIO_SECRETKEY=minioadmin
+      - MINIO_ACCESSKEY=test
+      - MINIO_SECRETKEY=secure123$
       - MINIO_BUCKET=prod
     depends_on:
       - nginx
