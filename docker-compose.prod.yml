@@ -78,8 +78,6 @@ services:
     container_name: storage
     command: server /data --console-address ":9090"
     restart: always
-    ports:
-      - "9000:9000"
     volumes:
       - minio_data:/data
     environment:
