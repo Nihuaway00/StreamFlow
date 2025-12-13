@@ -34,7 +34,7 @@ services:
     build: ./backend
     environment:
       - DATABASE_URL=postgresql+asyncpg://prod:prod@postgres:5432/streaming_db
-      - HLS_BASE_URL=http://media-server:8080
+      - HLS_BASE_URL=http://91.186.197.80:8080
       - RTMP_SERVER_HOST=media-server
       - RTMP_PORT=1935
       - MINIO_ENDPOINT=storage:9000
