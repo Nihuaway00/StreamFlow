@@ -65,7 +65,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     environment:
-      VITE_API_URL: http://localhost:8000
+      VITE_API_URL: http://backend:8000
+      VITE_HLS_BASE_URL: http://media-server:8080
     networks:
       - streamflow
 
