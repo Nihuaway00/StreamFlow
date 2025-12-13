@@ -1,0 +1,91 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: db
+    ports:
+      - "9999:5432"
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: streaming_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - streamflow
+
+  nginx:
+    container_name: nginx
+    build: ../nginx
+    environment:
+      - BACKEND_HOST=host.docker.internal
+      - BACKEND_PORT=8000
+      - FRONTEND_HOST=frontend
+      - FRONTEND_PORT=5173
+      - STORAGE_HOST=storage
+      - STORAGE_PORT=9000
+    ports:
+      - "80:80"
+      - "9000:9000"
+    networks:
+      - streamflow
+
+  backend:
+    container_name: backend
+    build: ../backend
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://user:password@postgres:5432/streaming_db
+      - MINIO_ENDPOINT=storage:9000
+      - MINIO_ACCESSKEY=minioadmin
+      - MINIO_SECRETKEY=minioadmin
+      - MINIO_BUCKET=dev
+    depends_on:
+      - nginx
+      - postgres
+      - storage
+    networks:
+      - streamflow-frontend
+
+  media-server:
+    container_name: media-server
+    build: ../media_server
+    environment:
+      - BACKEND_HOST=host.docker.internal
+      - BACKEND_PORT=8000
+    ports:
+      - "1935:1935"
+      - "8080:8080"
+    volumes:
+      - hls_data:/tmp/hls
+    networks:
+      - streamflow
+
+  frontend:
+    container_name: frondend
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    environment:
+      VITE_API_URL: http://localhost:8000
+    networks:
+      - streamflow
+
+  storage:
+    image: minio/minio
+    container_name: streamflow-backend-storage
+    command: server /data --console-address ":9090"
+    restart: always
+    volumes:
+      - minio_data:/data
+    environment:
+      - MINIO_ROOT_USER=test
+      - MINIO_ROOT_PASSWORD=secure123$
+    networks:
+      - streamflow
+
+volumes:
+  postgres_data:
+  hls_data:
+  minio_data:
+
+networks:
+  streamflow:
