@@ -37,7 +37,7 @@ services:
       - MINIO_ENDPOINT=storage:9000
       - MINIO_ACCESSKEY=minioadmin
       - MINIO_SECRETKEY=minioadmin
-      - MINIO_BUCKET=dev
+      - MINIO_BUCKET=prod
     depends_on:
       - nginx
       - postgres
