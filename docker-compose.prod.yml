@@ -25,7 +25,6 @@ services:
       - STORAGE_PORT=9000
     ports:
       - "80:80"
-      - "9000:9000"
     networks:
       - streamflow
 
@@ -41,6 +40,8 @@ services:
       - MINIO_ACCESSKEY=test
       - MINIO_SECRETKEY=secure123$
       - MINIO_BUCKET=prod
+      - API_HOST=91.186.197.80
+      - API_PORT=80
     depends_on:
       - nginx
       - postgres
