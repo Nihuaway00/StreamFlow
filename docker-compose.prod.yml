@@ -15,9 +15,9 @@ services:
 
   nginx:
     container_name: nginx
-    build: ../nginx
+    build: ./nginx
     environment:
-      - BACKEND_HOST=host.docker.internal
+      - BACKEND_HOST=backend
       - BACKEND_PORT=8000
       - FRONTEND_HOST=frontend
       - FRONTEND_PORT=5173
@@ -31,7 +31,7 @@ services:
 
   backend:
     container_name: backend
-    build: ../backend
+    build: ./backend
     environment:
       - DATABASE_URL=postgresql+asyncpg://user:password@postgres:5432/streaming_db
       - MINIO_ENDPOINT=storage:9000
@@ -43,13 +43,13 @@ services:
       - postgres
       - storage
     networks:
-      - streamflow-frontend
+      - streamflow
 
   media-server:
     container_name: media-server
-    build: ../media_server
+    build: ./media_server
     environment:
-      - BACKEND_HOST=host.docker.internal
+      - BACKEND_HOST=backend
       - BACKEND_PORT=8000
     ports:
       - "1935:1935"
@@ -62,7 +62,7 @@ services:
   frontend:
     container_name: frondend
     build:
-      context: ../frontend
+      context: ./frontend
       dockerfile: Dockerfile
     environment:
       VITE_API_URL: http://localhost:8000
@@ -71,7 +71,7 @@ services:
 
   storage:
     image: minio/minio
-    container_name: streamflow-backend-storage
+    container_name: storage
     command: server /data --console-address ":9090"
     restart: always
     volumes:
