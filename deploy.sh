@@ -6,4 +6,6 @@ docker compose -f docker-compose.prod.yml down
 
 docker compose -f docker-compose.prod.yml up -d
 
-docker ps
+sleep 10
+
+docker ps -a
