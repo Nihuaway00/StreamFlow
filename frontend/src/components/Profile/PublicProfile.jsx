@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../../services/api'
+import Thumbnail from '../Stream/Thumbnail'
 import './PublicProfile.css'
 
 const PublicProfile = () => {
@@ -13,7 +14,6 @@ const PublicProfile = () => {
   const [userStreams, setUserStreams] = useState([])
   const [streamsLoading, setStreamsLoading] = useState(true)
   const [avatarUrl, setAvatarUrl] = useState(null)
-  const [streamPreviews, setStreamPreviews] = useState({}) // Для хранения превью стримов
 
   // Функция для извлечения file_key
   const extractFileKey = (url) => {
@@ -30,114 +30,6 @@ const PublicProfile = () => {
     } catch {
       return url
     }
-  }
-
-  // Функция для получения URL превью стрима
-  const getStreamPreviewUrl = async (previewUrl) => {
-    if (!previewUrl) {
-      console.log('❌ previewUrl пустой')
-      return null
-    }
-    
-    try {
-      const fileKey = extractFileKey(previewUrl)
-      if (!fileKey) {
-        console.log('❌ Не удалось извлечь file_key из превью')
-        return null
-      }
-      
-      const response = await api.post('/files/', null, {
-        params: { file_key: fileKey }
-      })
-      
-      let signedUrl = response.data
-      if (signedUrl.includes('storage:9000')) {
-        signedUrl = signedUrl.replace('storage:9000', 'localhost:9000')
-      }
-      
-      console.log('✅ URL превью получен:', signedUrl)
-      return signedUrl
-      
-    } catch (error) {
-      console.error('❌ Ошибка получения URL превью:', error)
-      return null
-    }
-  }
-
-  // Компонент превью стрима
-  const StreamPreview = ({ previewUrl, title, style }) => {
-    const [imgUrl, setImgUrl] = useState(null)
-    const [loading, setLoading] = useState(false)
-
-    useEffect(() => {
-      const loadPreview = async () => {
-        if (!previewUrl) {
-          setImgUrl('/no-preview.jpg')
-          setLoading(false)
-          return
-        }
-        
-        try {
-          setLoading(true)
-          const url = await getStreamPreviewUrl(previewUrl)
-          setImgUrl(url)
-        } catch (error) {
-          console.error('Ошибка загрузки превью стрима:', error)
-          setImgUrl('/no-preview.jpg')
-        } finally {
-          setLoading(false)
-        }
-      }
-      
-      loadPreview()
-    }, [previewUrl])
-
-    if (loading) {
-      return (
-        <div style={{
-          ...style,
-          background: '#111',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: '#666',
-          borderRadius: '8px'
-        }}>
-          ⏳
-        </div>
-      )
-    }
-
-    if (imgUrl) {
-      return (
-        <img 
-          src={imgUrl} 
-          alt={title || "Превью стрима"}
-          style={{
-            ...style,
-            borderRadius: '8px',
-            objectFit: 'cover'
-          }}
-          onError={(e) => {
-            console.error('❌ Ошибка загрузки изображения превью')
-            e.target.onerror = null
-            e.target.src = '/no-preview.jpg'
-          }}
-        />
-      )
-    }
-
-    return (
-      <img 
-        src="/no-preview.jpg"
-        alt="Нет превью"
-        style={{
-          ...style,
-          borderRadius: '8px',
-          objectFit: 'cover'
-        }}
-      />
-    )
   }
 
   // Функция для получения эмодзи стрима
@@ -451,7 +343,7 @@ const PublicProfile = () => {
                     onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/stream/${stream.id}`) }}
                     style={{ cursor: 'pointer' }}
                   >
-                    {/* ПРЕВЬЮ СТРИМА */}
+                    {/* ПРЕВЬЮ СТРИМА - ИСПОЛЬЗУЕМ ЕДИНЫЙ Thumbnail */}
                     <div style={{ 
                       width: '100%', 
                       height: '180px', 
@@ -460,10 +352,10 @@ const PublicProfile = () => {
                       marginBottom: '15px',
                       position: 'relative'
                     }}>
-                      <StreamPreview 
+                      <Thumbnail
                         previewUrl={stream.preview_url}
-                        title={stream.title}
-                        style={{ width: '100%', height: '100%' }}
+                        alt={stream.title || "Превью стрима"}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       />
                       
                       {/* БЕЙДЖ СТАТУСА НАД ПРЕВЬЮ */}

@@ -220,7 +220,7 @@ const CreateStream = () => {
   }
 
   const streamKey = createdStream?.stream_key || `live_${user?.username}_${Date.now()}`
-  const rtmpUrl = createdStream?.rtmp_url || 'rtmp://localhost:1935/live'
+  const rtmpUrl = createdStream?.rtmp_url || 'http://91.186.197.80:1935/live'
 
   return (
     <div className="create-stream-page">
