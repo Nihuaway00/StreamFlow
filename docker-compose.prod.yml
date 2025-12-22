@@ -35,15 +35,12 @@ services:
       - .env.prod
     environment:
       - DATABASE_URL=postgresql+asyncpg://prod:prod@postgres:5432/streaming_db
-      - HLS_BASE_URL=http://$SERVER_HOST:8080
       - RTMP_SERVER_HOST=media-server
       - RTMP_PORT=1935
       - MINIO_ENDPOINT=storage:9000
       - MINIO_ACCESSKEY=test
       - MINIO_SECRETKEY=secure123$
       - MINIO_BUCKET=prod
-      - API_HOST=$SERVER_HOST
-      - API_PORT=$API_PORT
     depends_on:
       - nginx
       - postgres
