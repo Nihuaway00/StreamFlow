@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from starlette import status
 
-from app.database import get_db
+from app.database import get_db, AsyncSessionLocal
 from app.dependencies.chats import get_chats_service
 from app.models import MessageStatus, User, Message, Chat
 from app.schemas import OutgoingMessage, MessageChangeStatus, ChatResponse, SortOrder
@@ -86,11 +86,11 @@ rooms: dict[str, set[WebSocket]] = {}
 async def send_message(
         websocket: WebSocket,
         chat_id: str,
-        token: str,
-        service: ChatService = Depends(get_chats_service),
-        db: AsyncSession = Depends(get_db)
+        token: str
 ):
-    user = await get_ws_user(token, db)
+    # Создаем сессию только для проверки токена
+    async with AsyncSessionLocal() as db:
+        user = await get_ws_user(token, db)
 
     if not user:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
@@ -108,31 +108,37 @@ async def send_message(
         while True:
             data = await websocket.receive_text()
 
-            msg = await service.send_message(chat_id, user.id, data)
-            response = OutgoingMessage(
-                id=msg.id,
-                author=MessageAuthor(id=msg.user.id, username=msg.user.username, avatar_url=msg.user.avatar_url),
-                chat=ChatResponse(id=msg.chat.id),
-                content=msg.content,
-                created_at=msg.created_at
-            )
+            # Создаем новую сессию для каждой операции
+            async with AsyncSessionLocal() as db:
+                service = ChatService(db)
+                msg = await service.send_message(chat_id, user.id, data)
+                
+                response = OutgoingMessage(
+                    id=msg.id,
+                    author=MessageAuthor(id=msg.user.id, username=msg.user.username, avatar_url=msg.user.avatar_url),
+                    chat=ChatResponse(id=msg.chat.id),
+                    content=msg.content,
+                    created_at=msg.created_at
+                )
 
-            for ws in rooms[chat_id]:
-                if ws != websocket:  # ← Пропускаем отправителя
-                    await ws.send_json(response.model_dump_json())
-            await service.set_status(msg.id, MessageStatus.DELIVERED)
+                for ws in rooms[chat_id]:
+                    if ws != websocket:  # ← Пропускаем отправителя
+                        await ws.send_json(response.model_dump_json())
+                await service.set_status(msg.id, MessageStatus.DELIVERED)
 
-            message_change_status = MessageChangeStatus(
-                message_id=msg.id,
-                new_status=MessageStatus.DELIVERED
-            )
+                message_change_status = MessageChangeStatus(
+                    message_id=msg.id,
+                    new_status=MessageStatus.DELIVERED
+                )
 
-            await websocket.send_json(message_change_status.model_dump_json())
+                await websocket.send_json(message_change_status.model_dump_json())
     except Exception as e:
         logger.error(f"Failed to send to client: {e}")
 
         if msg:
-            await service.set_status(msg.id, MessageStatus.FAILED)
+            async with AsyncSessionLocal() as db:
+                service = ChatService(db)
+                await service.set_status(msg.id, MessageStatus.FAILED)
             message_change_status = MessageChangeStatus(
                 message_id=msg.id,
                 new_status=MessageStatus.FAILED
