@@ -26,5 +26,10 @@ jobs:
           cd ~/StreamFlow/
           git pull origin prod
 
+          # Создаем файл .env с секретами
+          echo "SERVER_HOST=${{ secrets.SERVER_HOST }}" > .env.prod
+          echo "API_PORT=80" >> .env.prod
+          
+
           chmod +x deploy.sh
           ./deploy.sh
