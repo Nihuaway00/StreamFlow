@@ -23,40 +23,52 @@ const StreamPage = () => {
   const [streamerAvatarUrl, setStreamerAvatarUrl] = useState(null)
   const [streamStatus, setStreamStatus] = useState('loading')
 
-    const getAvatarUrl = async (avatarUrl) => {
-      if (!avatarUrl) return null;
+  const getAvatarUrl = async (avatarUrl) => {
+    if (!avatarUrl) return null;
+    
+    console.log('🔄 Получаю URL аватара:', avatarUrl);
+    
+    // Если это уже полный URL (http/https), возвращаем его
+    if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
+      console.log('✅ Уже полный URL, возвращаем как есть');
+      return avatarUrl;
+    }
+    
+    // Если это путь (/files/...), добавляем базовый URL
+    if (avatarUrl.startsWith('/')) {
+      const fullUrl = `http://91.186.197.80${avatarUrl}`;
+      console.log('✅ Сформирован URL:', fullUrl);
+      return fullUrl;
+    }
+    
+    // Если это просто ключ файла (без пути)
+    try {
+      console.log('🔑 Получаю URL для ключа файла:', avatarUrl);
       
-      // Если это уже URL, возвращаем его
-      if (avatarUrl.includes('://')) {
-        return avatarUrl;
+      // Используем API для получения URL
+      const response = await api.post('/files/', null, {
+        params: { file_key: avatarUrl }
+      });
+      
+      let signedUrl = response.data;
+      console.log('📥 Получен signed URL:', signedUrl);
+      
+      // Убедимся, что это полный URL
+      if (signedUrl && !signedUrl.startsWith('http')) {
+        signedUrl = `http://91.186.197.80${signedUrl.startsWith('/') ? '' : '/'}${signedUrl}`;
       }
-
-      // Иначе считаем, что это ключ файла
-      try {
-        const response = await api.post('/files/', null, {
-          params: { file_key: avatarUrl }
-        });
-        
-        let signedUrl = response.data;
-        
-        if (typeof signedUrl === 'string') {
-          if (signedUrl.includes('storage:9000')) {
-            signedUrl = signedUrl.replace('storage:9000', 'localhost:9000');
-          }
-          
-          try {
-            new URL(signedUrl);
-            return signedUrl;
-          } catch {
-            return null;
-          }
-        }
-        return null;
-        
-      } catch (error) {
-        console.error('Ошибка получения URL аватара:', error);
-        return null;
-      }
+      
+      console.log('✅ Финальный URL аватара:', signedUrl);
+      return signedUrl;
+      
+    } catch (error) {
+      console.error('❌ Ошибка получения URL аватара:', error);
+      
+      // Пробуем создать URL самостоятельно
+      const fallbackUrl = `http://91.186.197.80/api/files/preview/${avatarUrl}`;
+      console.log('🔄 Пробую fallback URL:', fallbackUrl);
+      return fallbackUrl;
+    }
   }
 
   const extractFileKey = (avatarUrl) => {
@@ -112,15 +124,23 @@ const StreamPage = () => {
       const response = await streamAPI.getUserPublicInfo(userId)
       const streamerData = response.data
       
+      console.log('📊 Данные стримера получены:', streamerData)
+      
       setStreamerInfo(streamerData)
       
-        if (streamerData.avatar_url) {
-          const avatarUrl = await getAvatarUrl(streamerData.avatar_url);
-          setStreamerAvatarUrl(avatarUrl);
-          }
+      // Получаем URL аватара
+      if (streamerData.avatar_url) {
+        console.log('🔄 Получен avatar_url:', streamerData.avatar_url)
+        const avatarUrl = await getAvatarUrl(streamerData.avatar_url)
+        console.log('✅ Преобразованный URL аватара:', avatarUrl)
+        setStreamerAvatarUrl(avatarUrl)
+      } else {
+        console.log('ℹ️ У стримера нет аватара в данных')
+        setStreamerAvatarUrl(null)
+      }
       
     } catch (err) {
-      console.error('Error fetching streamer info:', err)
+      console.error('❌ Ошибка получения информации о стримере:', err)
       setStreamerInfo({
         username: stream?.author?.username,
         id: userId
