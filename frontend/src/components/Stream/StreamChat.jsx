@@ -16,6 +16,7 @@ const StreamChat = ({ streamId, chatId: propChatId }) => {
   const pollingIntervalRef = useRef(null);
   const retryCountRef = useRef(0);
   const maxRetries = 5;
+  const hasSystemWelcomeRef = useRef(false); // Новый реф для отслеживания системного сообщения
 
   useEffect(() => {
     if (propChatId) {
@@ -70,7 +71,7 @@ const StreamChat = ({ streamId, chatId: propChatId }) => {
     pollingIntervalRef.current = setInterval(() => {
       console.log('🔄 Автообновление чата...');
       loadMessageHistory();
-    }, 1000);
+    }, 3000); // Увеличил интервал до 3 секунд для уменьшения нагрузки
     
     setupWebSocket();
     
@@ -82,6 +83,7 @@ const StreamChat = ({ streamId, chatId: propChatId }) => {
       if (chatSocket) {
         chatSocket.close();
       }
+      hasSystemWelcomeRef.current = false; // Сбрасываем флаг при размонтировании
     };
   }, [chatId, user]);
 
@@ -156,6 +158,9 @@ const StreamChat = ({ streamId, chatId: propChatId }) => {
       }
       
       if (history.length > 0) {
+        // Есть сообщения - очищаем системное сообщение если было
+        hasSystemWelcomeRef.current = false;
+        
         const processedMessages = history.reverse().map(msg => {
           let content = '';
           
@@ -196,21 +201,29 @@ const StreamChat = ({ streamId, chatId: propChatId }) => {
         
         setLoading(false);
       } else {
-        setMessages([{
-          id: 'welcome_' + Date.now(),
-          content: "💬 Чат пуст. Напишите первое сообщение!",
-          author: { id: 'system', username: "Система" },
-          chat: { id: chatId },
-          created_at: new Date().toISOString(),
-          is_system: true
-        }]);
+        // Нет сообщений - показываем системное сообщение только один раз
+        if (!hasSystemWelcomeRef.current) {
+          hasSystemWelcomeRef.current = true;
+          
+          setMessages([{
+            id: 'welcome_' + Date.now(),
+            content: "💬 Чат пуст. Напишите первое сообщение!",
+            author: { id: 'system', username: "Система" },
+            chat: { id: chatId },
+            created_at: new Date().toISOString(),
+            is_system: true
+          }]);
+        }
+        
         setLoading(false);
       }
     } catch (error) {
       console.error('❌ Ошибка загрузки истории:', error);
       setLoading(false);
       
-      if (!messages.length) {
+      if (!hasSystemWelcomeRef.current && messages.length === 0) {
+        hasSystemWelcomeRef.current = true;
+        
         setMessages([{
           id: 'error_' + Date.now(),
           content: "⚠️ Ошибка загрузки чата. Попробуйте обновить страницу.",
@@ -239,6 +252,12 @@ const StreamChat = ({ streamId, chatId: propChatId }) => {
       created_at: new Date().toISOString(),
       is_temp: true
     };
+    
+    // Если было системное сообщение, удаляем его
+    if (hasSystemWelcomeRef.current) {
+      hasSystemWelcomeRef.current = false;
+      setMessages(prev => prev.filter(msg => !msg.is_system));
+    }
     
     setMessages(prev => [...prev, tempMsg]);
     
@@ -347,11 +366,11 @@ const StreamChat = ({ streamId, chatId: propChatId }) => {
             <div className="status-indicator">
               <div className={`status-dot ${connected ? 'connected' : 'disconnected'}`} />
               <span className={`status-text ${connected ? 'connected' : 'disconnected'}`}>
-                {connected ? 'WebSocket' : 'Polling (1s)'}
+                {connected ? 'WebSocket' : 'Polling (3s)'}
               </span>
             </div>
             <span className="message-count-badge">
-              {messages.filter(m => !m.is_temp && !m.is_system).length} сообщений
+              {messages.filter(m => !m.is_temp && !m.is_system && !m.is_error).length} сообщений
             </span>
           </div>
         </div>
@@ -370,7 +389,7 @@ const StreamChat = ({ streamId, chatId: propChatId }) => {
         ) : messages.length === 0 ? (
           <div className="chat-empty">
             <div className="empty-icon">💬</div>
-            <div className="empty-text">Чат пуст</div>
+            <div className="empty-text">Загрузка сообщений...</div>
           </div>
         ) : (
           messages.map((msg) => (
