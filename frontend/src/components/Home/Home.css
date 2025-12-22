@@ -1,7 +1,4 @@
-/* ============================
-   ОСНОВА СТЕКЛЯННОГО ДИЗАЙНА
-============================ */
-
+/*ОСНОВА СТЕКЛЯННОГО ДИЗАЙНА*/
 .home-page-root {
   position: relative;
   min-height: calc(100vh - 50px);
@@ -73,6 +70,7 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 15px;
+  width: 100%;
 }
 
 .live-heading {
@@ -102,6 +100,14 @@
 
 .section-icon {
   font-size: 28px;
+}
+
+.theme-filter-indicator {
+  font-size: 18px;
+  font-weight: 600;
+  color: #9147ff;
+  margin-left: 8px;
+  opacity: 0.9;
 }
 
 /* Счетчики */
@@ -137,6 +143,8 @@
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  width: 100%;
+  margin-top: 10px;
 }
 
 .stream-tag {
@@ -148,16 +156,30 @@
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s;
+  user-select: none;
 }
 
 .stream-tag:hover {
   background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
 }
 
 .stream-tag.active {
   background: rgba(145, 71, 255, 0.2);
   border-color: rgba(145, 71, 255, 0.3);
   color: #9147ff;
+  font-weight: 600;
+}
+
+.stream-tag.loading {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.stream-tag.more {
+  background: rgba(255, 255, 255, 0.02);
+  opacity: 0.7;
+  cursor: default;
 }
 
 /* ===== СЕТКА СТРИМОВ ===== */
@@ -189,6 +211,7 @@
   text-decoration: none;
   color: inherit;
   height: 100%;
+  position: relative;
 }
 
 .stream-card:hover {
@@ -260,6 +283,39 @@
   }
 }
 
+/* Бейджи тематик на превью */
+.theme-badges {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 3;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.theme-badge {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  background: rgba(0,0,0,0.3);
+  white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.theme-badge.more {
+  background: rgba(0,0,0,0.5);
+  font-weight: 600;
+}
+
 /* Тело карточки */
 .card-body {
   padding: 18px;
@@ -299,11 +355,38 @@
   font-weight: 700;
   font-size: 14px;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.author-avatar.loading {
+  opacity: 0.7;
+}
+
+.author-avatar.no-avatar {
+  background: linear-gradient(45deg, #9147ff, #772ce8);
 }
 
 .card-sub {
   font-size: 14px;
   color: rgba(255, 255, 255, 0.7);
+}
+
+/* Теги тематик в карточке */
+.card-themes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.card-theme-tag {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  white-space: nowrap;
 }
 
 /* Нижняя часть карточки */
@@ -312,6 +395,8 @@
   align-items: center;
   justify-content: space-between;
   margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .views {
@@ -414,6 +499,15 @@
   margin: 0;
   color: rgba(255, 255, 255, 0.6);
   font-size: 16px;
+  max-width: 400px;
+}
+
+.empty-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 15px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 /* ===== БЛОК "НАЧНИ ВЕЩАНИЕ" ===== */
@@ -546,6 +640,10 @@
     font-size: 20px;
   }
   
+  .theme-filter-indicator {
+    font-size: 16px;
+  }
+  
   .start-block {
     padding: 30px;
   }
@@ -566,11 +664,29 @@
   .start-btn {
     width: 100%;
   }
+  
+  .empty-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .empty-actions .btn {
+    width: 100%;
+  }
 }
 
 @media (max-width: 480px) {
   .stream-grid {
     gap: 15px;
+  }
+  
+  .stream-tags {
+    gap: 8px;
+  }
+  
+  .stream-tag {
+    padding: 6px 12px;
+    font-size: 13px;
   }
   
   .start-content {
@@ -588,5 +704,15 @@
   
   .btn {
     width: 100%;
+  }
+  
+  .theme-badges {
+    right: 8px;
+    bottom: 8px;
+  }
+  
+  .theme-badge {
+    font-size: 10px;
+    padding: 3px 8px;
   }
 }
