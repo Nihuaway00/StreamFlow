@@ -23,57 +23,11 @@ const StreamPage = () => {
   const [streamerAvatarUrl, setStreamerAvatarUrl] = useState(null)
   const [streamStatus, setStreamStatus] = useState('loading')
 
-  const getAvatarUrl = async (avatarUrl) => {
-    if (!avatarUrl) return null;
-    
-    console.log('🔄 Получаю URL аватара:', avatarUrl);
-    
-    // Если это уже полный URL (http/https), возвращаем его
-    if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
-      console.log('✅ Уже полный URL, возвращаем как есть');
-      return avatarUrl;
-    }
-    
-    // Если это путь (/files/...), добавляем базовый URL
-    if (avatarUrl.startsWith('/')) {
-      const fullUrl = `http://91.186.197.80${avatarUrl}`;
-      console.log('✅ Сформирован URL:', fullUrl);
-      return fullUrl;
-    }
-    
-    // Если это просто ключ файла (без пути)
-    try {
-      console.log('🔑 Получаю URL для ключа файла:', avatarUrl);
-      
-      // Используем API для получения URL
-      const response = await api.post('/files/', null, {
-        params: { file_key: avatarUrl }
-      });
-      
-      let signedUrl = response.data;
-      console.log('📥 Получен signed URL:', signedUrl);
-      
-      // Убедимся, что это полный URL
-      if (signedUrl && !signedUrl.startsWith('http')) {
-        signedUrl = `http://91.186.197.80${signedUrl.startsWith('/') ? '' : '/'}${signedUrl}`;
-      }
-      
-      console.log('✅ Финальный URL аватара:', signedUrl);
-      return signedUrl;
-      
-    } catch (error) {
-      console.error('❌ Ошибка получения URL аватара:', error);
-      
-      // Пробуем создать URL самостоятельно
-      const fallbackUrl = `http://91.186.197.80/api/files/preview/${avatarUrl}`;
-      console.log('🔄 Пробую fallback URL:', fallbackUrl);
-      return fallbackUrl;
-    }
-  }
-
+  // ПРОСТАЯ ФУНКЦИЯ ДЛЯ ПОЛУЧЕНИЯ AVATAR_URL (как в HomePage.jsx)
   const extractFileKey = (avatarUrl) => {
     if (!avatarUrl) return null
     
+    // Если это уже file_key (без URL)
     if (typeof avatarUrl === 'string' && 
         !avatarUrl.includes('://') && 
         !avatarUrl.startsWith('/')) {
@@ -81,15 +35,61 @@ const StreamPage = () => {
     }
     
     try {
+      // Если это относительный путь
       if (avatarUrl.startsWith('/')) {
         return avatarUrl.substring(1)
       }
       
+      // Если это полный URL
       const url = new URL(avatarUrl)
       return url.pathname.substring(1)
     } catch (error) {
       return avatarUrl
     }
+  }
+
+  // Получение signed URL через /files/ (как в HomePage.jsx)
+  const getAvatarSignedUrl = async (fileKey) => {
+    if (!fileKey) return null
+    
+    try {
+      const response = await api.post('/files/', null, {
+        params: { file_key: fileKey }
+      })
+      
+      let signedUrl = response.data
+      
+      if (typeof signedUrl === 'string') {
+        // Заменяем storage:9000 на localhost:9000 для локальной разработки
+        if (signedUrl.includes('storage:9000')) {
+          signedUrl = signedUrl.replace('storage:9000', 'localhost:9000')
+        }
+        return signedUrl
+      }
+      return null
+    } catch (error) {
+      console.error('Ошибка получения signed URL аватара:', error)
+      return null
+    }
+  }
+
+  // Основная функция для получения URL аватара
+  const getAvatarUrl = async (avatarUrl) => {
+    if (!avatarUrl) return null
+    
+    console.log('🔍 Оригинальный avatar_url:', avatarUrl)
+    
+    // Извлекаем file_key
+    const fileKey = extractFileKey(avatarUrl)
+    console.log('📁 Извлеченный file_key:', fileKey)
+    
+    if (!fileKey) return null
+    
+    // Получаем signed URL
+    const signedUrl = await getAvatarSignedUrl(fileKey)
+    console.log('✅ Signed URL:', signedUrl)
+    
+    return signedUrl
   }
 
   const fetchStream = async () => {
@@ -121,14 +121,14 @@ const StreamPage = () => {
   const fetchStreamerInfo = async (userId) => {
     try {
       setStreamerLoading(true)
-      const response = await streamAPI.getUserPublicInfo(userId)
+      const response = await api.get(`/users/${userId}`)
       const streamerData = response.data
       
       console.log('📊 Данные стримера получены:', streamerData)
       
       setStreamerInfo(streamerData)
       
-      // Получаем URL аватара
+      // Получаем URL аватара через /files/ endpoint
       if (streamerData.avatar_url) {
         console.log('🔄 Получен avatar_url:', streamerData.avatar_url)
         const avatarUrl = await getAvatarUrl(streamerData.avatar_url)
@@ -141,10 +141,13 @@ const StreamPage = () => {
       
     } catch (err) {
       console.error('❌ Ошибка получения информации о стримере:', err)
-      setStreamerInfo({
-        username: stream?.author?.username,
-        id: userId
-      })
+      // Сохраняем хотя бы имя из стрима
+      if (stream?.author) {
+        setStreamerInfo({
+          id: userId,
+          username: stream.author.username
+        })
+      }
     } finally {
       setStreamerLoading(false)
     }
@@ -174,7 +177,31 @@ const StreamPage = () => {
 
     loadInitialData()
 
-    const interval = setInterval(fetchStream, 10000)
+    // Оставляем только обновление статуса стрима, БЕЗ перезагрузки данных стримера
+    const interval = setInterval(() => {
+      // Обновляем только базовые данные стрима (статус, зрителей), но НЕ данные стримера
+      const updateStreamData = async () => {
+        try {
+          const response = await streamAPI.getStream(streamId)
+          const streamData = response.data
+          
+          // Обновляем только нужные поля, не трогая стримера
+          setStream(prev => prev ? {
+            ...prev,
+            status: streamData.status,
+            viewers_count: streamData.viewers_count,
+            started_at: streamData.started_at
+          } : streamData)
+          
+          setStreamStatus(streamData.status || 'offline')
+        } catch (err) {
+          console.log('Ошибка обновления статуса стрима:', err)
+        }
+      }
+      
+      updateStreamData()
+    }, 10000)
+    
     return () => clearInterval(interval)
   }, [streamId])
 
@@ -195,7 +222,7 @@ const StreamPage = () => {
   }, [streamId])
 
   const handleImageError = (e) => {
-    console.error('Ошибка загрузки аватара стримера')
+    console.error('Ошибка загрузки изображения аватара')
     e.target.style.display = 'none'
   }
 
@@ -303,6 +330,40 @@ const StreamPage = () => {
       <div className={`stream-status-badge ${streamStatus}`}>
         <span>{config.icon}</span>
         <span>{config.text}</span>
+      </div>
+    )
+  }
+
+  // РЕНДЕРИМ ИНИЦИАЛЫ ЕСЛИ НЕТ АВАТАРА
+  const renderAvatar = () => {
+    const username = streamerInfo?.username || stream?.author?.username || 'S'
+    const displayLetter = username.charAt(0).toUpperCase()
+    
+    if (streamerAvatarUrl) {
+      return (
+        <img 
+          src={streamerAvatarUrl} 
+          alt="Avatar" 
+          className="avatar-img"
+          onError={(e) => {
+            console.error('Ошибка загрузки аватара, показываем инициалы')
+            e.target.style.display = 'none'
+            const avatarContainer = e.target.parentElement
+            if (avatarContainer) {
+              const fallbackDiv = document.createElement('div')
+              fallbackDiv.className = 'avatar-fallback'
+              fallbackDiv.textContent = displayLetter
+              avatarContainer.appendChild(fallbackDiv)
+            }
+          }}
+        />
+      )
+    }
+    
+    // Если нет URL аватара — показываем инициалы
+    return (
+      <div className="avatar-fallback">
+        {displayLetter}
       </div>
     )
   }
@@ -468,18 +529,7 @@ const StreamPage = () => {
                 ) : (
                   <div className="streamer-content">
                     <div className="glass-avatar">
-                      {streamerAvatarUrl ? (
-                        <img 
-                          src={streamerAvatarUrl} 
-                          alt="Avatar" 
-                          className="avatar-img"
-                          onError={handleImageError}
-                        />
-                      ) : (
-                        <div className="avatar-fallback">
-                          {(streamerInfo?.username || stream.author.username)?.charAt(0).toUpperCase() || 'S'}
-                        </div>
-                      )}
+                      {renderAvatar()}
                     </div>
 
                     <div className="streamer-info">
