@@ -185,8 +185,102 @@ const CreateStream = () => {
   }
 
   const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text)
-    alert('✅ Скопировано в буфер обмена!')
+    // Для HTTP сайтов используем старый метод
+    const el = document.createElement('textarea')
+    el.value = text
+    el.setAttribute('readonly', '')
+    el.style.position = 'absolute'
+    el.style.left = '-9999px'
+    document.body.appendChild(el)
+    
+    // Выделяем текст
+    el.select()
+    el.setSelectionRange(0, 99999) // Для мобильных
+    
+    try {
+      // Пробуем document.execCommand (работает на HTTP)
+      const successful = document.execCommand('copy')
+      
+      // Создаем красивое уведомление вместо alert
+      const notification = document.createElement('div')
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(90deg, #9147ff, #772ce8);
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        z-index: 10000;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        animation: slideIn 0.3s ease;
+        font-family: inherit;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      `
+      
+      if (successful) {
+        notification.innerHTML = '<span>✅</span> Скопировано в буфер обмена!'
+      } else {
+        notification.innerHTML = '<span>📋</span> Текст выделен - скопируйте вручную'
+        // Фокус на поле, чтобы пользователь мог скопировать
+        el.focus()
+      }
+      
+      document.body.appendChild(notification)
+      
+      // Автоматически скрываем уведомление через 2 секунды
+      setTimeout(() => {
+        if (document.body.contains(notification)) {
+          notification.style.animation = 'slideOut 0.3s ease'
+          setTimeout(() => {
+            if (document.body.contains(notification)) {
+              document.body.removeChild(notification)
+            }
+          }, 300)
+        }
+      }, 2000)
+      
+    } catch (err) {
+      console.error('Ошибка копирования:', err)
+      
+      // Если совсем не получилось - показываем prompt
+      const notification = document.createElement('div')
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #ff6b6b;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        z-index: 10000;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        animation: slideIn 0.3s ease;
+      `
+      notification.innerHTML = '<span>❌</span> Скопируйте текст вручную'
+      
+      document.body.appendChild(notification)
+      
+      // Показываем текст для копирования
+      prompt('Скопируйте текст:', text)
+      
+      setTimeout(() => {
+        if (document.body.contains(notification)) {
+          notification.style.animation = 'slideOut 0.3s ease'
+          setTimeout(() => {
+            if (document.body.contains(notification)) {
+              document.body.removeChild(notification)
+            }
+          }, 300)
+        }
+      }, 3000)
+    } finally {
+      // Всегда убираем временный элемент
+      document.body.removeChild(el)
+    }
   }
 
   // Функция для получения русского названия тематики
@@ -220,7 +314,7 @@ const CreateStream = () => {
   }
 
   const streamKey = createdStream?.stream_key || `live_${user?.username}_${Date.now()}`
-  const rtmpUrl = createdStream?.rtmp_url || 'http://91.186.197.80:1935/live'
+  const rtmpUrl = 'http://91.186.197.80:1935/live'
 
   return (
     <div className="create-stream-page">
