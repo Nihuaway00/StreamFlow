@@ -346,7 +346,7 @@ const PublicProfile = () => {
                     {/* ПРЕВЬЮ СТРИМА - ИСПОЛЬЗУЕМ ЕДИНЫЙ Thumbnail */}
                     <div style={{ 
                       width: '100%', 
-                      height: '180px', 
+                      aspectRatio: '16/9', 
                       borderRadius: '8px', 
                       overflow: 'hidden', 
                       marginBottom: '15px',
@@ -355,10 +355,30 @@ const PublicProfile = () => {
                       <Thumbnail
                         previewUrl={stream.preview_url}
                         alt={stream.title || "Превью стрима"}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        style={{ 
+                          width: '100%', 
+                          height: '100%', 
+                          objectFit: 'cover',
+                          transition: 'transform 0.3s ease'
+                        }}
+                        className="stream-thumbnail"
                       />
                       
-                      {/* БЕЙДЖ СТАТУСА НАД ПРЕВЬЮ */}
+                      {/* Оверлей для эффекта при наведении */}
+                      <div className="thumbnail-overlay" 
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 30%)',
+                          opacity: 0,
+                          transition: 'opacity 0.3s ease'
+                        }}
+                      />
+                      
+                      {/* БЕЙДЖ СТАТУСА */}
                       <div style={{
                         position: 'absolute',
                         top: '10px',
@@ -371,7 +391,8 @@ const PublicProfile = () => {
                         fontWeight: 'bold',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '5px'
+                        gap: '5px',
+                        zIndex: 2
                       }}>
                         {stream.status === 'live' ? '🔴 LIVE' : '⚫ OFFLINE'}
                       </div>
@@ -389,7 +410,8 @@ const PublicProfile = () => {
                           fontSize: '12px',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '5px'
+                          gap: '5px',
+                          zIndex: 2
                         }}>
                           👁️ {stream.viewers_count}
                         </div>
