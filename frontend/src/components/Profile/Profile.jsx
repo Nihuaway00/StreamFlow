@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import api from '../../services/api'
 import Thumbnail from '../Stream/Thumbnail'
+import { useNavigate } from 'react-router-dom' // Добавляем useNavigate
 import './Profile.css'
 
 const Profile = () => {
     const { user, logout, updateUser } = useAuth()
+    const navigate = useNavigate() // Добавляем навигацию
     const [showSettings, setShowSettings] = useState(false)
     const [username, setUsername] = useState(user?.username || '')
     const [usernameChanged, setUsernameChanged] = useState(false)
@@ -291,6 +293,11 @@ const Profile = () => {
             setAvatarPreview(null)
         }
     }, [user?.avatar_url])
+
+    // Функция для перехода на страницу стрима
+    const handleStreamClick = (streamId) => {
+        navigate(`/stream/${streamId}`)
+    }
 
     const calculateProgress = (progress, total) => {
         return total > 0 ? Math.min((progress / total) * 100, 100) : 0
@@ -767,12 +774,31 @@ const Profile = () => {
                             ) : userStreams.length === 0 ? (
                                 <div className="small-muted">
                                     <p>У вас пока нет стримов</p>
-                                    <button className="btn btn-primary" onClick={() => window.location.href = '/stream'}>🎥 Начать первый стрим</button>
+                                    <button className="btn btn-primary" onClick={() => navigate('/stream')}>🎥 Начать первый стрим</button>
                                 </div>
                             ) : (
                                 <div>
                                     {userStreams.slice(0, 3).map((stream) => (
-                                        <div key={stream.id} className="stream-item">
+                                        <div 
+                                            key={stream.id} 
+                                            className="stream-item"
+                                            onClick={() => handleStreamClick(stream.id)}
+                                            style={{
+                                                cursor: 'pointer',
+                                                transition: 'all 0.2s ease',
+                                                position: 'relative'
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.transform = 'translateY(-2px)'
+                                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)'
+                                                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.transform = 'translateY(0)'
+                                                e.currentTarget.style.boxShadow = 'none'
+                                                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)'
+                                            }}
+                                        >
                                             <div style={{display:'flex', alignItems:'center', gap:12}}>
                                                 {/* ИСПОЛЬЗУЕМ Thumbnail вместо StreamPreview */}
                                                 <Thumbnail
@@ -802,7 +828,7 @@ const Profile = () => {
                     <div>
                         <div className="glass side-block">
                             <h3 className="side-title">⚡ Быстрые действия</h3>
-                            <button className="side-btn btn-primary" onClick={() => window.location.href = '/stream'}>🎥 Начать стрим</button>
+                            <button className="side-btn btn-primary" onClick={() => navigate('/stream')}>🎥 Начать стрим</button>
                             <button className="side-btn btn-ghost" onClick={() => setShowSettings(true)}>⚙️ Настройки профиля</button>
                             <button className="side-btn btn-ghost">👥 Мои подписки</button>
                         </div>

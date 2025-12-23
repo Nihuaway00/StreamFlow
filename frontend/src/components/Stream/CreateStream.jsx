@@ -138,15 +138,13 @@ const CreateStream = () => {
       
       console.log('✅ Стрим создан! Данные:', createdStreamData)
       
-      // Показываем уведомление
-      const shouldRedirect = window.confirm(
-        `✅ Стрим "${createdStreamData.title}" успешно создан!\n\n` +
-        `Перейти на страницу стрима?`
-      )
-      
-      if (shouldRedirect) {
-        navigate(`/stream/${createdStreamData.id}`)
-      }
+      // Прокручиваем страницу к настройкам OBS
+      setTimeout(() => {
+        const obsElement = document.querySelector('.obs-settings')
+        if (obsElement) {
+          obsElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+      }, 100)
       
     } catch (error) {
       console.error('❌ Ошибка создания стрима:', error)
